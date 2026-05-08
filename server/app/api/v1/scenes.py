@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.schemas.common import ApiResponse
 from app.schemas.scene import SceneListItem
-from app.services.repositories import service_container
+from app.services.container import service_container
 
 
 router = APIRouter()
@@ -14,4 +14,3 @@ def list_scenes() -> ApiResponse[list[SceneListItem]]:
         data=service_container.scene_service.list_scenes(),
         request_id="req_scenes_list",
     )
-

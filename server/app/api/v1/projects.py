@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.common import ApiResponse, PageResponse
 from app.schemas.project import CreateProjectRequest, ProjectDetail
-from app.services.repositories import service_container
+from app.services.container import service_container
 
 
 router = APIRouter()
@@ -30,4 +30,3 @@ def get_project(project_id: str) -> ApiResponse[ProjectDetail]:
     if project is None:
         raise HTTPException(status_code=404, detail="PROJECT_NOT_FOUND")
     return ApiResponse.success(data=project, request_id="req_project_detail")
-

@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.schemas.auth import LoginRequest, LoginResponseData, SendSmsRequest
 from app.schemas.common import ApiResponse
-from app.services.repositories import service_container
+from app.services.container import service_container
 
 
 router = APIRouter()
@@ -22,4 +22,3 @@ def login(payload: LoginRequest) -> ApiResponse[LoginResponseData]:
         device_id=payload.device_id,
     )
     return ApiResponse.success(data=data, request_id="req_auth_login")
-

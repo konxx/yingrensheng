@@ -26,6 +26,10 @@ __pycache__/
 .venv/
 venv/
 env/
+.env
+.env.*
+*.db
+*.sqlite3
 
 # OS / editor
 .DS_Store

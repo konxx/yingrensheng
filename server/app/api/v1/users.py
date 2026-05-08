@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.schemas.common import ApiResponse
 from app.schemas.user import UserProfile
-from app.services.repositories import service_container
+from app.services.container import service_container
 
 
 router = APIRouter()

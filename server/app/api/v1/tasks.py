@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.common import ApiResponse
 from app.schemas.task import TaskStatusResponse
-from app.services.repositories import service_container
+from app.services.container import service_container
 
 
 router = APIRouter()
@@ -14,4 +14,3 @@ def get_task(task_id: str) -> ApiResponse[TaskStatusResponse]:
     if task is None:
         raise HTTPException(status_code=404, detail="TASK_NOT_FOUND")
     return ApiResponse.success(data=task, request_id="req_task_detail")
-

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.common import ApiResponse
 from app.schemas.upload import UploadInitiateRequest, UploadInitiateResponse, UploadStatusResponse
-from app.services.repositories import service_container
+from app.services.container import service_container
 
 
 router = APIRouter()
@@ -20,4 +20,3 @@ def get_upload(upload_id: str) -> ApiResponse[UploadStatusResponse]:
     if upload is None:
         raise HTTPException(status_code=404, detail="UPLOAD_NOT_FOUND")
     return ApiResponse.success(data=upload, request_id="req_upload_detail")
-

@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.schemas.common import ApiResponse
 from app.schemas.user import MemberMeResponse
-from app.services.repositories import service_container
+from app.services.container import service_container
 
 
 router = APIRouter()
@@ -14,4 +14,3 @@ def get_member_me() -> ApiResponse[MemberMeResponse]:
         data=service_container.user_service.get_member_info(),
         request_id="req_member_me",
     )
-
