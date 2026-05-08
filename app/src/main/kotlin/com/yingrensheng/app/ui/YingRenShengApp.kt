@@ -1,5 +1,8 @@
 package com.yingrensheng.app.ui
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -12,6 +15,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.yingrensheng.core.navigation.route.AppRoute
@@ -44,12 +48,15 @@ import com.yingrensheng.feature.works.ui.WorksRoute
 
 @Composable
 fun YingRenShengApp() {
+    val context = LocalContext.current
+    val activity = context as? Activity
     val userRepository = UserRepositoryProvider.current
     val session by userRepository.session().collectAsState()
     var backendReady by remember { mutableStateOf<Boolean?>(null) }
     var backendProbeVersion by remember { mutableStateOf(0) }
     var currentRoute by remember { mutableStateOf(AppRoute.BackendCheck) }
     val routeBackStack = remember { mutableStateListOf<String>() }
+    var lastHomeBackPressedAt by remember { mutableStateOf(0L) }
     val showBottomBar = currentRoute in topLevelDestinations.map(TopLevelDestination::route)
 
     fun resolvePostBackendRoute(): String {
@@ -88,6 +95,26 @@ fun YingRenShengApp() {
     fun popBackTo(route: String) {
         currentRoute = route
         routeBackStack.removeAll { true }
+    }
+
+    BackHandler {
+        if (routeBackStack.isNotEmpty()) {
+            currentRoute = routeBackStack.removeAt(routeBackStack.lastIndex)
+            return@BackHandler
+        }
+
+        if (currentRoute == AppRoute.Home) {
+            val now = System.currentTimeMillis()
+            if (now - lastHomeBackPressedAt < 2_000) {
+                activity?.finish()
+            } else {
+                lastHomeBackPressedAt = now
+                Toast.makeText(context, "再按一次退出应用", Toast.LENGTH_SHORT).show()
+            }
+            return@BackHandler
+        }
+
+        activity?.finish()
     }
 
     Scaffold(
