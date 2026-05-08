@@ -18,12 +18,12 @@ from app.schemas.user import MemberMeResponse, UserProfile
 class AuthService:
     repository: UserRepository
 
-    def send_sms(self, phone: str, purpose: str) -> None:
-        _ = (phone, purpose)
+    def send_sms(self, username: str, purpose: str) -> None:
+        _ = (username, purpose)
 
-    def login(self, phone: str, sms_code: str, device_id: str, password: str | None = None) -> LoginResponseData:
+    def login(self, username: str, sms_code: str, device_id: str, password: str | None = None) -> LoginResponseData:
         _ = (sms_code, device_id)
-        profile = self.repository.verify_user(phone=phone, password=password or "123456")
+        profile = self.repository.verify_user(username=username, password=password or "123456")
         if profile is None:
             raise ValueError("INVALID_CREDENTIALS")
         return LoginResponseData(
@@ -34,13 +34,14 @@ class AuthService:
         )
 
     def register(self, payload: RegisterRequest) -> LoginResponseData:
-        existing = self.repository.get_by_phone(payload.phone)
+        existing = self.repository.get_by_username(payload.username)
         if existing is not None:
-            raise ValueError("PHONE_ALREADY_REGISTERED")
+            raise ValueError("USERNAME_ALREADY_REGISTERED")
         profile = self.repository.create_user(
-            phone=payload.phone,
+            username=payload.username,
             nickname=payload.nickname,
             password=payload.password,
+            email=payload.email,
         )
         return LoginResponseData(
             accessToken="token_dev_register",
@@ -55,13 +56,14 @@ class UserService:
     repository: UserRepository
 
     def get_current_user(self) -> UserProfile:
-        profile = self.repository.verify_user(phone="13800138000", password="123456")
+        profile = self.repository.verify_user(username="demo", password="123456")
         if profile is not None:
             return profile
         return UserProfile(
             userId="user_001",
+            username="demo",
+            email="demo@yingrensheng.local",
             nickname="林青",
-            phone="13800138000",
             avatarUrl="",
         )
 

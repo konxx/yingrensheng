@@ -2,6 +2,7 @@ package com.yingrensheng.core.navigation.route
 
 object AppRoute {
     const val Splash = "splash"
+    const val BackendCheck = "backend/check"
     const val Onboarding = "onboarding"
     const val Agreement = "auth/agreement"
     const val Login = "auth/login"
@@ -27,4 +28,3 @@ object AppRoute {
     const val Orders = "order/list"
     const val AgencyEntry = "agency/entry"
 }
-

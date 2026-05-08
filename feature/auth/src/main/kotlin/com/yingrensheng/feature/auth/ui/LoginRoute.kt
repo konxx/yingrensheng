@@ -19,20 +19,21 @@ import com.yingrensheng.core.ui.scaffold.YrsScaffold
 
 @Composable
 fun LoginRoute(
-    onLogin: (phone: String, password: String) -> Unit,
-    onRegister: (phone: String, nickname: String, password: String) -> Unit,
+    onLogin: (username: String, password: String) -> Unit,
+    onRegister: (username: String, nickname: String, email: String, password: String) -> Unit,
 ) {
     var isRegisterMode by remember { mutableStateOf(false) }
-    var phone by remember { mutableStateOf("13800138000") }
+    var username by remember { mutableStateOf("demo") }
     var nickname by remember { mutableStateOf("新用户") }
+    var email by remember { mutableStateOf("new@yingrensheng.local") }
     var password by remember { mutableStateOf("123456") }
 
     YrsScaffold(
         title = if (isRegisterMode) "注册后开始创作" else "登录后继续创作",
         subtitle = if (isRegisterMode) {
-            "先用手机号 + 昵称 + 密码完成最小注册闭环，后续再扩成验证码注册。"
+            "当前注册要求提供账号、邮箱、昵称和密码，先把账号体系打稳。"
         } else {
-            "当前已接后端登录接口，先用手机号 + 密码完成本地联调。"
+            "当前已接后端登录接口，先用账号 + 密码完成本地联调。"
         },
     ) {
         YrsSurfaceCard {
@@ -51,9 +52,9 @@ fun LoginRoute(
                 }
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("手机号") },
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("账号") },
                     singleLine = true,
                 )
                 if (isRegisterMode) {
@@ -62,6 +63,13 @@ fun LoginRoute(
                         value = nickname,
                         onValueChange = { nickname = it },
                         label = { Text("昵称") },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text("邮箱") },
                         singleLine = true,
                     )
                 }
@@ -76,9 +84,9 @@ fun LoginRoute(
                     text = if (isRegisterMode) "注册并进入映人生" else "登录进入映人生",
                     onClick = {
                         if (isRegisterMode) {
-                            onRegister(phone, nickname, password)
+                            onRegister(username, nickname, email, password)
                         } else {
-                            onLogin(phone, password)
+                            onLogin(username, password)
                         }
                     },
                 )

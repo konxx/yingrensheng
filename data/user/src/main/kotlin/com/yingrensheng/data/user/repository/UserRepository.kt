@@ -6,11 +6,13 @@ import kotlinx.coroutines.flow.StateFlow
 interface UserRepository {
     fun session(): StateFlow<UserSession>
 
+    fun isBackendReachable(): Boolean
+
     fun acceptAgreement()
 
-    fun login(phone: String, password: String = "123456")
+    fun login(username: String, password: String = "123456")
 
-    fun register(phone: String, nickname: String, password: String)
+    fun register(username: String, nickname: String, email: String, password: String)
 }
 
 object UserRepositoryProvider {

@@ -6,14 +6,14 @@ from app.schemas.user import UserProfile
 class SendSmsRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
-    phone: str
+    username: str
     purpose: str
 
 
 class LoginRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
-    phone: str
+    username: str
     sms_code: str = Field(alias="smsCode")
     device_id: str = Field(alias="deviceId")
     password: str | None = None
@@ -22,7 +22,8 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
-    phone: str
+    username: str
+    email: str
     nickname: str
     password: str
 

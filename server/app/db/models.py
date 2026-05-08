@@ -56,9 +56,9 @@ class UserAccountModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    phone: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    email: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     nickname: Mapped[str] = mapped_column(String(128))
     password: Mapped[str] = mapped_column(String(255))
     avatar_url: Mapped[str] = mapped_column(String(255), default="")
     role: Mapped[str] = mapped_column(String(32), default="user", index=True)
-

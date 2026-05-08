@@ -33,6 +33,34 @@ def _try_create_mysql_database() -> None:
             admin_engine.dispose()
 
 
+def _ensure_user_accounts_columns() -> None:
+    if settings.db_driver.lower() != "mysql":
+        return
+    with engine.connect() as conn:
+        result = conn.execute(text("SHOW COLUMNS FROM user_accounts"))
+        columns = {row[0] for row in result}
+
+        if "phone" in columns and "username" not in columns:
+            conn.execute(text("ALTER TABLE user_accounts CHANGE COLUMN phone username VARCHAR(64) NOT NULL"))
+        if "email" not in columns:
+            conn.execute(text("ALTER TABLE user_accounts ADD COLUMN email VARCHAR(128) NOT NULL DEFAULT ''"))
+        conn.execute(
+            text(
+                "UPDATE user_accounts "
+                "SET email = CONCAT(username, '@yingrensheng.local') "
+                "WHERE email = '' OR email IS NULL"
+            ),
+        )
+
+        index_rows = conn.execute(text("SHOW INDEX FROM user_accounts")).fetchall()
+        index_names = {row[2] for row in index_rows}
+        if "ix_user_accounts_username" not in index_names:
+            conn.execute(text("CREATE UNIQUE INDEX ix_user_accounts_username ON user_accounts (username)"))
+        if "ix_user_accounts_email" not in index_names:
+            conn.execute(text("CREATE UNIQUE INDEX ix_user_accounts_email ON user_accounts (email)"))
+        conn.commit()
+
+
 def _seed_if_needed() -> None:
     with SessionLocal() as session:
         has_project = session.query(ProjectModel).first()
@@ -65,30 +93,43 @@ def _seed_if_needed() -> None:
                     updated_at=now_iso(),
                 ),
             )
-        has_admin = session.query(UserAccountModel).filter(UserAccountModel.role == "admin").first()
-        if not has_admin:
+        admin_account = session.query(UserAccountModel).filter(UserAccountModel.user_id == "admin_001").first()
+        if admin_account is None:
             session.add(
                 UserAccountModel(
                     user_id="admin_001",
-                    phone="admin",
+                    username="admin",
+                    email="admin@yingrensheng.local",
                     nickname="Administrator",
                     password="admin",
                     avatar_url="",
                     role="admin",
                 ),
             )
-        has_user = session.query(UserAccountModel).filter(UserAccountModel.phone == "13800138000").first()
-        if not has_user:
+        else:
+            admin_account.username = "admin"
+            admin_account.email = admin_account.email or "admin@yingrensheng.local"
+            admin_account.nickname = "Administrator"
+            admin_account.role = "admin"
+
+        demo_user = session.query(UserAccountModel).filter(UserAccountModel.user_id == "user_001").first()
+        if demo_user is None:
             session.add(
                 UserAccountModel(
                     user_id="user_001",
-                    phone="13800138000",
+                    username="demo",
+                    email="demo@yingrensheng.local",
                     nickname="林青",
                     password="123456",
                     avatar_url="",
                     role="user",
                 ),
             )
+        else:
+            demo_user.username = demo_user.username or "demo"
+            demo_user.email = demo_user.email or "demo@yingrensheng.local"
+            demo_user.nickname = demo_user.nickname or "林青"
+            demo_user.role = "user"
         session.commit()
 
 
@@ -97,6 +138,7 @@ def initialize_database(on_mysql_fallback: Callable[[Exception], None] | None = 
         try:
             _try_create_mysql_database()
             Base.metadata.create_all(bind=engine)
+            _ensure_user_accounts_columns()
             _seed_if_needed()
             return
         except OperationalError as exc:

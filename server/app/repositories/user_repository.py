@@ -6,17 +6,18 @@ from app.schemas.user import UserProfile
 
 
 class UserRepository:
-    def get_by_phone(self, phone: str) -> UserAccountModel | None:
+    def get_by_username(self, username: str) -> UserAccountModel | None:
         with SessionLocal() as session:
-            stmt = select(UserAccountModel).where(UserAccountModel.phone == phone)
+            stmt = select(UserAccountModel).where(UserAccountModel.username == username)
             return session.execute(stmt).scalar_one_or_none()
 
-    def create_user(self, phone: str, nickname: str, password: str) -> UserProfile:
+    def create_user(self, username: str, nickname: str, password: str, email: str) -> UserProfile:
         with SessionLocal() as session:
             next_number = session.query(UserAccountModel).count() + 1
             model = UserAccountModel(
                 user_id=f"user_{next_number:03d}",
-                phone=phone,
+                username=username,
+                email=email,
                 nickname=nickname,
                 password=password,
                 avatar_url="",
@@ -27,10 +28,10 @@ class UserRepository:
             session.refresh(model)
             return self._to_profile(model)
 
-    def verify_user(self, phone: str, password: str) -> UserProfile | None:
+    def verify_user(self, username: str, password: str) -> UserProfile | None:
         with SessionLocal() as session:
             stmt = select(UserAccountModel).where(
-                UserAccountModel.phone == phone,
+                UserAccountModel.username == username,
                 UserAccountModel.password == password,
                 UserAccountModel.role == "user",
             )
@@ -40,7 +41,7 @@ class UserRepository:
     def verify_admin(self, username: str, password: str) -> UserAccountModel | None:
         with SessionLocal() as session:
             stmt = select(UserAccountModel).where(
-                UserAccountModel.phone == username,
+                UserAccountModel.username == username,
                 UserAccountModel.password == password,
                 UserAccountModel.role == "admin",
             )
@@ -51,12 +52,21 @@ class UserRepository:
             stmt = select(UserAccountModel).where(UserAccountModel.role == "user").order_by(UserAccountModel.id.desc())
             return session.execute(stmt).scalars().all()
 
+    def update_password(self, user_id: str, new_password: str) -> None:
+        with SessionLocal() as session:
+            stmt = select(UserAccountModel).where(UserAccountModel.user_id == user_id)
+            model = session.execute(stmt).scalar_one_or_none()
+            if model is None:
+                return
+            model.password = new_password
+            session.commit()
+
     @staticmethod
     def _to_profile(model: UserAccountModel) -> UserProfile:
         return UserProfile(
             userId=model.user_id,
             nickname=model.nickname,
-            phone=model.phone,
+            username=model.username,
+            email=model.email,
             avatarUrl=model.avatar_url,
         )
-

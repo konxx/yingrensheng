@@ -5,8 +5,9 @@ class UserProfile(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
     user_id: str = Field(alias="userId")
+    username: str
+    email: str
     nickname: str
-    phone: str
     avatar_url: str = Field(alias="avatarUrl", default="")
 
 

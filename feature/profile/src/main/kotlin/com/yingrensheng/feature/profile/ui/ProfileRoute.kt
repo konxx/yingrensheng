@@ -31,7 +31,8 @@ fun ProfileRoute(
                     text = session.user?.nickname ?: "未登录用户",
                     style = MaterialTheme.typography.titleLarge,
                 )
-                Text(text = session.user?.phone ?: "")
+                Text(text = session.user?.username ?: "")
+                Text(text = session.user?.email ?: "")
             }
         }
         YrsPrimaryButton(text = "进入会员中心", onClick = onOpenMember)

@@ -7,6 +7,8 @@ import com.yingrensheng.core.network.NetworkApiResponse
 import com.yingrensheng.core.network.SimpleApiClient
 import com.yingrensheng.core.network.YrsApiConfig
 import com.yingrensheng.core.network.requireData
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,17 +26,30 @@ class NetworkUserRepository(
 
     override fun session(): StateFlow<UserSession> = sessionState.asStateFlow()
 
+    override fun isBackendReachable(): Boolean {
+        return runCatching {
+            val connection = (URL("http://10.0.2.2:3000/health").openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 2_000
+                readTimeout = 2_000
+            }
+            val ok = connection.responseCode in 200..299
+            connection.disconnect()
+            ok
+        }.getOrDefault(false)
+    }
+
     override fun acceptAgreement() {
         sessionState.value = sessionState.value.copy(hasAcceptedAgreement = true)
     }
 
-    override fun login(phone: String, password: String) {
+    override fun login(username: String, password: String) {
         runCatching {
             val loginType = object : TypeToken<NetworkApiResponse<LoginResponse>>() {}.type
             val envelope: NetworkApiResponse<LoginResponse> = apiClient.post(
                 path = "/auth/login",
                 body = mapOf(
-                    "phone" to phone,
+                    "username" to username,
                     "smsCode" to "123456",
                     "deviceId" to "android_local",
                     "password" to password,
@@ -45,26 +60,28 @@ class NetworkUserRepository(
             sessionState.value = sessionState.value.copy(
                 user = User(
                     userId = response.user.userId,
+                    username = response.user.username,
+                    email = response.user.email,
                     nickname = response.user.nickname,
-                    phone = response.user.phone,
                     avatarLabel = response.user.nickname.take(2),
                 ),
             )
         }.onFailure {
             fallback.acceptAgreement()
-            fallback.login(phone, password)
+            fallback.login(username, password)
             sessionState.value = fallback.session().value
         }
     }
 
-    override fun register(phone: String, nickname: String, password: String) {
+    override fun register(username: String, nickname: String, email: String, password: String) {
         runCatching {
             val registerType = object : TypeToken<NetworkApiResponse<LoginResponse>>() {}.type
             val envelope: NetworkApiResponse<LoginResponse> = apiClient.post(
                 path = "/auth/register",
                 body = mapOf(
-                    "phone" to phone,
+                    "username" to username,
                     "nickname" to nickname,
+                    "email" to email,
                     "password" to password,
                 ),
                 type = registerType,
@@ -73,14 +90,15 @@ class NetworkUserRepository(
             sessionState.value = sessionState.value.copy(
                 user = User(
                     userId = response.user.userId,
+                    username = response.user.username,
+                    email = response.user.email,
                     nickname = response.user.nickname,
-                    phone = response.user.phone,
                     avatarLabel = response.user.nickname.take(2),
                 ),
             )
         }.onFailure {
             fallback.acceptAgreement()
-            fallback.register(phone = phone, nickname = nickname, password = password)
+            fallback.register(username = username, nickname = nickname, email = email, password = password)
             sessionState.value = fallback.session().value
         }
     }
@@ -105,7 +123,8 @@ private data class LoginResponse(
 
 private data class LoginUser(
     val userId: String,
+    val username: String,
+    val email: String,
     val nickname: String,
-    val phone: String,
     val avatarUrl: String,
 )

@@ -5,18 +5,22 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.yingrensheng.core.navigation.route.AppRoute
 import com.yingrensheng.core.navigation.route.TopLevelDestination
 import com.yingrensheng.core.navigation.route.topLevelDestinations
 import com.yingrensheng.data.user.repository.UserRepositoryProvider
 import com.yingrensheng.feature.agency.ui.AgencyEntryRoute
 import com.yingrensheng.feature.auth.ui.AgreementRoute
+import com.yingrensheng.feature.auth.ui.BackendCheckRoute
 import com.yingrensheng.feature.auth.ui.LoginRoute
 import com.yingrensheng.feature.create.ui.CreateEntryRoute
 import com.yingrensheng.feature.create.ui.InterviewRoute
@@ -42,17 +46,33 @@ import com.yingrensheng.feature.works.ui.WorksRoute
 fun YingRenShengApp() {
     val userRepository = UserRepositoryProvider.current
     val session by userRepository.session().collectAsState()
-    var currentRoute by remember(session.hasAcceptedAgreement, session.user) {
-        mutableStateOf(
-            when {
-                !session.hasAcceptedAgreement -> AppRoute.Onboarding
-                session.user == null -> AppRoute.Login
-                else -> AppRoute.Home
-            },
-        )
-    }
+    var backendReady by remember { mutableStateOf<Boolean?>(null) }
+    var backendProbeVersion by remember { mutableStateOf(0) }
+    var currentRoute by remember { mutableStateOf(AppRoute.BackendCheck) }
     val routeBackStack = remember { mutableStateListOf<String>() }
     val showBottomBar = currentRoute in topLevelDestinations.map(TopLevelDestination::route)
+
+    fun resolvePostBackendRoute(): String {
+        return when {
+            !session.hasAcceptedAgreement -> AppRoute.Onboarding
+            session.user == null -> AppRoute.Login
+            else -> AppRoute.Home
+        }
+    }
+
+    suspend fun refreshBackendState() {
+        backendReady = null
+        backendReady = withContext(Dispatchers.IO) {
+            userRepository.isBackendReachable()
+        }
+    }
+
+    LaunchedEffect(backendProbeVersion) {
+        refreshBackendState()
+        if (backendReady == true) {
+            currentRoute = resolvePostBackendRoute()
+        }
+    }
 
     fun navigate(route: String) {
         if (currentRoute != route) {
@@ -87,6 +107,14 @@ fun YingRenShengApp() {
         },
     ) { _ ->
         when (currentRoute) {
+            AppRoute.BackendCheck -> BackendCheckRoute(
+                backendReady = backendReady,
+                onRetry = {
+                    backendProbeVersion += 1
+                },
+                onContinue = { currentRoute = resolvePostBackendRoute() },
+            )
+
             AppRoute.Onboarding -> OnboardingRoute(
                 onContinue = { currentRoute = AppRoute.Agreement },
             )
@@ -99,12 +127,12 @@ fun YingRenShengApp() {
             )
 
             AppRoute.Login -> LoginRoute(
-                onLogin = { phone, password ->
-                    userRepository.login(phone, password)
+                onLogin = { username, password ->
+                    userRepository.login(username, password)
                     currentRoute = AppRoute.Home
                 },
-                onRegister = { phone, nickname, password ->
-                    userRepository.register(phone, nickname, password)
+                onRegister = { username, nickname, email, password ->
+                    userRepository.register(username, nickname, email, password)
                     currentRoute = AppRoute.Home
                 },
             )

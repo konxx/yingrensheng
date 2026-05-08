@@ -10,7 +10,7 @@ router = APIRouter()
 
 @router.post("/sms/send", response_model=ApiResponse[dict[str, str]])
 def send_sms(payload: SendSmsRequest) -> ApiResponse[dict[str, str]]:
-    service_container.auth_service.send_sms(payload.phone, payload.purpose)
+    service_container.auth_service.send_sms(payload.username, payload.purpose)
     return ApiResponse.success(data={"status": "sent"}, request_id="req_auth_sms_send")
 
 
@@ -18,7 +18,7 @@ def send_sms(payload: SendSmsRequest) -> ApiResponse[dict[str, str]]:
 def login(payload: LoginRequest) -> ApiResponse[LoginResponseData]:
     try:
         data = service_container.auth_service.login(
-            phone=payload.phone,
+            username=payload.username,
             sms_code=payload.sms_code,
             device_id=payload.device_id,
             password=payload.password,
