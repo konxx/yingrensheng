@@ -16,6 +16,15 @@ class LoginRequest(BaseModel):
     phone: str
     sms_code: str = Field(alias="smsCode")
     device_id: str = Field(alias="deviceId")
+    password: str | None = None
+
+
+class RegisterRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    phone: str
+    nickname: str
+    password: str
 
 
 class LoginResponseData(BaseModel):

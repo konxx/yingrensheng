@@ -20,15 +20,26 @@ class FakeUserRepository : UserRepository {
         sessionState.value = sessionState.value.copy(hasAcceptedAgreement = true)
     }
 
-    override fun login(phone: String) {
+    override fun login(phone: String, password: String) {
+        val nickname = if (phone == "admin") "Administrator" else "林青"
         sessionState.value = sessionState.value.copy(
             user = User(
-                userId = "user_001",
-                nickname = "林青",
+                userId = if (phone == "admin") "admin_001" else "user_001",
+                nickname = nickname,
                 phone = phone,
-                avatarLabel = "LQ",
+                avatarLabel = nickname.take(2),
+            ),
+        )
+    }
+
+    override fun register(phone: String, nickname: String, password: String) {
+        sessionState.value = sessionState.value.copy(
+            user = User(
+                userId = "user_fake_register",
+                nickname = nickname,
+                phone = phone,
+                avatarLabel = nickname.take(2),
             ),
         )
     }
 }
-

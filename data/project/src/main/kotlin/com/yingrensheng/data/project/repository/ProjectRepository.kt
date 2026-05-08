@@ -18,7 +18,7 @@ interface ProjectRepository {
 
 object ProjectRepositoryProvider {
     @Volatile
-    var current: ProjectRepository = FakeProjectRepository()
+    var current: ProjectRepository = NetworkProjectRepository.fallbackAware()
 }
 
 class FakeProjectRepository : ProjectRepository {

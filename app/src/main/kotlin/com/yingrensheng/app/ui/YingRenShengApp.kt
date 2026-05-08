@@ -99,8 +99,12 @@ fun YingRenShengApp() {
             )
 
             AppRoute.Login -> LoginRoute(
-                onLogin = { phone ->
-                    userRepository.login(phone)
+                onLogin = { phone, password ->
+                    userRepository.login(phone, password)
+                    currentRoute = AppRoute.Home
+                },
+                onRegister = { phone, nickname, password ->
+                    userRepository.register(phone, nickname, password)
                     currentRoute = AppRoute.Home
                 },
             )

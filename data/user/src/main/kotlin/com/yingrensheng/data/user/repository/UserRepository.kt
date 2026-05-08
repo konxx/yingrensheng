@@ -8,10 +8,12 @@ interface UserRepository {
 
     fun acceptAgreement()
 
-    fun login(phone: String)
+    fun login(phone: String, password: String = "123456")
+
+    fun register(phone: String, nickname: String, password: String)
 }
 
 object UserRepositoryProvider {
     @Volatile
-    var current: UserRepository = FakeUserRepository()
+    var current: UserRepository = NetworkUserRepository.fallbackAware()
 }

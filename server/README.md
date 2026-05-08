@@ -72,3 +72,16 @@ GET /health
 GET /api/v1/scenes
 POST /api/v1/auth/login
 ```
+
+## Admin 页面
+
+浏览器访问：
+
+```text
+http://127.0.0.1:3000/admin
+```
+
+默认后台账号：
+
+- 用户名：`admin`
+- 密码：`admin`

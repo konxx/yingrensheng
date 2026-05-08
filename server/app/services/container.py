@@ -4,7 +4,8 @@ from app.core.time import now_iso
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.upload_repository import UploadRepository
-from app.schemas.auth import LoginResponseData
+from app.repositories.user_repository import UserRepository
+from app.schemas.auth import LoginResponseData, RegisterRequest
 from app.schemas.common import PageResponse
 from app.schemas.project import CreateProjectRequest, ProjectDetail
 from app.schemas.scene import SceneListItem
@@ -15,27 +16,48 @@ from app.schemas.user import MemberMeResponse, UserProfile
 
 @dataclass
 class AuthService:
+    repository: UserRepository
+
     def send_sms(self, phone: str, purpose: str) -> None:
         _ = (phone, purpose)
 
-    def login(self, phone: str, sms_code: str, device_id: str) -> LoginResponseData:
+    def login(self, phone: str, sms_code: str, device_id: str, password: str | None = None) -> LoginResponseData:
         _ = (sms_code, device_id)
+        profile = self.repository.verify_user(phone=phone, password=password or "123456")
+        if profile is None:
+            raise ValueError("INVALID_CREDENTIALS")
         return LoginResponseData(
             accessToken="token_dev_001",
             refreshToken="refresh_dev_001",
             expiresInSeconds=7200,
-            user=UserProfile(
-                userId="user_001",
-                nickname="林青",
-                phone=phone,
-                avatarUrl="",
-            ),
+            user=profile,
+        )
+
+    def register(self, payload: RegisterRequest) -> LoginResponseData:
+        existing = self.repository.get_by_phone(payload.phone)
+        if existing is not None:
+            raise ValueError("PHONE_ALREADY_REGISTERED")
+        profile = self.repository.create_user(
+            phone=payload.phone,
+            nickname=payload.nickname,
+            password=payload.password,
+        )
+        return LoginResponseData(
+            accessToken="token_dev_register",
+            refreshToken="refresh_dev_register",
+            expiresInSeconds=7200,
+            user=profile,
         )
 
 
 @dataclass
 class UserService:
+    repository: UserRepository
+
     def get_current_user(self) -> UserProfile:
+        profile = self.repository.verify_user(phone="13800138000", password="123456")
+        if profile is not None:
+            return profile
         return UserProfile(
             userId="user_001",
             nickname="林青",
@@ -122,14 +144,17 @@ class TaskService:
 
 @dataclass
 class ServiceContainer:
-    auth_service: AuthService = field(default_factory=AuthService)
-    user_service: UserService = field(default_factory=UserService)
+    user_repository: UserRepository = field(default_factory=UserRepository)
     scene_service: SceneService = field(default_factory=SceneService)
+    auth_service: AuthService = field(init=False)
+    user_service: UserService = field(init=False)
     project_service: ProjectService = field(init=False)
     upload_service: UploadService = field(init=False)
     task_service: TaskService = field(init=False)
 
     def __post_init__(self) -> None:
+        self.auth_service = AuthService(repository=self.user_repository)
+        self.user_service = UserService(repository=self.user_repository)
         self.project_service = ProjectService(
             repository=ProjectRepository(),
             scene_service=self.scene_service,

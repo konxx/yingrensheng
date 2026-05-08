@@ -58,9 +58,7 @@ interface CreationRepository {
 
 object CreationRepositoryProvider {
     @Volatile
-    var current: CreationRepository = FakeCreationRepository(
-        projectRepository = ProjectRepositoryProvider.current,
-    )
+    var current: CreationRepository = NetworkCreationRepository.fallbackAware()
 }
 
 class FakeCreationRepository(

@@ -8,7 +8,7 @@ from sqlalchemy.exc import OperationalError
 from app.core.settings import settings
 from app.core.time import now_iso
 from app.db.base import Base
-from app.db.models import ProjectModel, TaskModel
+from app.db.models import ProjectModel, TaskModel, UserAccountModel
 from app.db.session import SessionLocal, engine
 
 
@@ -63,6 +63,30 @@ def _seed_if_needed() -> None:
                     result_json=None,
                     error_json=json.dumps(None, ensure_ascii=False),
                     updated_at=now_iso(),
+                ),
+            )
+        has_admin = session.query(UserAccountModel).filter(UserAccountModel.role == "admin").first()
+        if not has_admin:
+            session.add(
+                UserAccountModel(
+                    user_id="admin_001",
+                    phone="admin",
+                    nickname="Administrator",
+                    password="admin",
+                    avatar_url="",
+                    role="admin",
+                ),
+            )
+        has_user = session.query(UserAccountModel).filter(UserAccountModel.phone == "13800138000").first()
+        if not has_user:
+            session.add(
+                UserAccountModel(
+                    user_id="user_001",
+                    phone="13800138000",
+                    nickname="林青",
+                    password="123456",
+                    avatar_url="",
+                    role="user",
                 ),
             )
         session.commit()
