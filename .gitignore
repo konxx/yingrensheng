@@ -1,0 +1,32 @@
+*.iml
+.gradle/
+.gradle-tmp/
+.kotlin/
+/build/
+/local.properties
+/.idea/
+captures/
+externalNativeBuild/
+.cxx/
+
+# Android / IntelliJ
+**/build/
+**/.cxx/
+**/captures/
+
+# Python server
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
