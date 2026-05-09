@@ -11,20 +11,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 
 private val LightColors = lightColorScheme(
-    primary = AmberAccent,
-    onPrimary = WarmSurface,
-    secondary = SlateBlue,
-    tertiary = WineAccent,
-    background = FilmPaper,
-    surface = WarmSurface,
-    onBackground = InkGreen,
-    onSurface = InkGreen,
+    primary = WeUiGreen,
+    onPrimary = WeUiSurface,
+    secondary = WeUiTextSecondary,
+    tertiary = WeUiQr,
+    background = WeUiBackground,
+    surface = WeUiSurface,
+    onBackground = WeUiTextPrimary,
+    onSurface = WeUiTextPrimary,
+    outline = WeUiBorder,
 )
 
 private val DarkColors = darkColorScheme(
-    primary = AmberAccent,
-    secondary = SlateBlue,
-    tertiary = WineAccent,
+    primary = WeUiGreen,
+    secondary = WeUiTextSecondary,
+    tertiary = WeUiQr,
 )
 
 @Composable
@@ -40,15 +41,10 @@ fun YingRenShengTheme(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(FilmPaper, Mist, FilmPaperDeep),
-                        ),
-                    ),
+                    .background(WeUiBackground),
             ) {
                 content()
             }
         },
     )
 }
-

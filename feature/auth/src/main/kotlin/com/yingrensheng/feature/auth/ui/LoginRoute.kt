@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,6 +22,8 @@ import com.yingrensheng.core.ui.scaffold.YrsScaffold
 fun LoginRoute(
     onLogin: (username: String, password: String) -> Unit,
     onRegister: (username: String, nickname: String, email: String, password: String) -> Unit,
+    loading: Boolean,
+    errorMessage: String?,
 ) {
     var isRegisterMode by remember { mutableStateOf(false) }
     var username by remember { mutableStateOf("demo") }
@@ -82,6 +85,7 @@ fun LoginRoute(
                 )
                 YrsPrimaryButton(
                     text = if (isRegisterMode) "注册并进入映人生" else "登录进入映人生",
+                    enabled = !loading,
                     onClick = {
                         if (isRegisterMode) {
                             onRegister(username, nickname, email, password)
@@ -90,6 +94,20 @@ fun LoginRoute(
                         }
                     },
                 )
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                    )
+                }
+                if (loading) {
+                    TextButton(
+                        onClick = {},
+                        enabled = false,
+                    ) {
+                        Text("正在请求后端...")
+                    }
+                }
             }
         }
     }

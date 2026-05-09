@@ -18,7 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
-import com.yingrensheng.core.designsystem.theme.FilmPaperDeep
+import com.yingrensheng.core.designsystem.theme.WeUiBackgroundMuted
 import com.yingrensheng.core.ui.component.InfoPill
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
@@ -43,7 +43,7 @@ fun PreviewRoute(
                             .fillMaxWidth()
                             .aspectRatio(16f / 9f)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(FilmPaperDeep),
+                            .background(WeUiBackgroundMuted),
                     ) {
                         Text(
                             text = "Preview Frame",

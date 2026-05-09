@@ -6,9 +6,8 @@ data class TopLevelDestination(
 )
 
 val topLevelDestinations = listOf(
-    TopLevelDestination(route = AppRoute.Home, label = "Home"),
-    TopLevelDestination(route = AppRoute.CreateEntry, label = "Create"),
-    TopLevelDestination(route = AppRoute.Works, label = "Works"),
-    TopLevelDestination(route = AppRoute.Profile, label = "Profile"),
+    TopLevelDestination(route = AppRoute.Home, label = "首页"),
+    TopLevelDestination(route = AppRoute.CreateEntry, label = "创作"),
+    TopLevelDestination(route = AppRoute.Works, label = "作品"),
+    TopLevelDestination(route = AppRoute.Profile, label = "我"),
 )
-

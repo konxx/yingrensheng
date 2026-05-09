@@ -12,13 +12,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.yingrensheng.core.designsystem.theme.FilmPaperDeep
-import com.yingrensheng.core.designsystem.theme.WarmSurface
+import com.yingrensheng.core.designsystem.theme.WeUiBorder
+import com.yingrensheng.core.designsystem.theme.WeUiSurface
 
 @Composable
 fun YrsSurfaceCard(
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(20.dp),
+    contentPadding: PaddingValues = PaddingValues(18.dp),
     content: @Composable () -> Unit,
 ) {
     Card(
@@ -26,12 +26,12 @@ fun YrsSurfaceCard(
             .fillMaxWidth()
             .border(
                 width = 1.dp,
-                color = FilmPaperDeep,
-                shape = RoundedCornerShape(28.dp),
+                color = WeUiBorder,
+                shape = RoundedCornerShape(16.dp),
             ),
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = WarmSurface,
+            containerColor = WeUiSurface,
             contentColor = MaterialTheme.colorScheme.onSurface,
         ),
     ) {
@@ -40,4 +40,3 @@ fun YrsSurfaceCard(
         }
     }
 }
-

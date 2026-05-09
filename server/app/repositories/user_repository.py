@@ -61,6 +61,19 @@ class UserRepository:
             model.password = new_password
             session.commit()
 
+    def update_profile(self, user_id: str, username: str, nickname: str, email: str) -> UserProfile | None:
+        with SessionLocal() as session:
+            stmt = select(UserAccountModel).where(UserAccountModel.user_id == user_id)
+            model = session.execute(stmt).scalar_one_or_none()
+            if model is None:
+                return None
+            model.username = username
+            model.nickname = nickname
+            model.email = email
+            session.commit()
+            session.refresh(model)
+            return self._to_profile(model)
+
     @staticmethod
     def _to_profile(model: UserAccountModel) -> UserProfile:
         return UserProfile(

@@ -42,6 +42,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:model"))
     implementation(project(":core:navigation"))

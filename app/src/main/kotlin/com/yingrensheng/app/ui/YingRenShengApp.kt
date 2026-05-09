@@ -14,13 +14,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.yingrensheng.core.navigation.route.AppRoute
 import com.yingrensheng.core.navigation.route.TopLevelDestination
 import com.yingrensheng.core.navigation.route.topLevelDestinations
+import com.yingrensheng.core.common.result.AppResult
 import com.yingrensheng.data.user.repository.UserRepositoryProvider
 import com.yingrensheng.feature.agency.ui.AgencyEntryRoute
 import com.yingrensheng.feature.auth.ui.AgreementRoute
@@ -43,13 +46,17 @@ import com.yingrensheng.feature.onboarding.ui.OnboardingRoute
 import com.yingrensheng.feature.order.ui.ExportProcessingRoute
 import com.yingrensheng.feature.order.ui.OrdersRoute
 import com.yingrensheng.feature.order.ui.PaymentRoute
+import com.yingrensheng.feature.profile.ui.ProfileDetailRoute
 import com.yingrensheng.feature.profile.ui.ProfileRoute
+import com.yingrensheng.feature.profile.ui.SettingsRoute
+import com.yingrensheng.feature.profile.ui.UserQrRoute
 import com.yingrensheng.feature.works.ui.WorksRoute
 
 @Composable
 fun YingRenShengApp() {
     val context = LocalContext.current
     val activity = context as? Activity
+    val scope = rememberCoroutineScope()
     val userRepository = UserRepositoryProvider.current
     val session by userRepository.session().collectAsState()
     var backendReady by remember { mutableStateOf<Boolean?>(null) }
@@ -57,6 +64,8 @@ fun YingRenShengApp() {
     var currentRoute by remember { mutableStateOf(AppRoute.BackendCheck) }
     val routeBackStack = remember { mutableStateListOf<String>() }
     var lastHomeBackPressedAt by remember { mutableStateOf(0L) }
+    var authLoading by remember { mutableStateOf(false) }
+    var authErrorMessage by remember { mutableStateOf<String?>(null) }
     val showBottomBar = currentRoute in topLevelDestinations.map(TopLevelDestination::route)
 
     fun resolvePostBackendRoute(): String {
@@ -155,13 +164,29 @@ fun YingRenShengApp() {
 
             AppRoute.Login -> LoginRoute(
                 onLogin = { username, password ->
-                    userRepository.login(username, password)
-                    currentRoute = AppRoute.Home
+                    scope.launch {
+                        authLoading = true
+                        authErrorMessage = null
+                        when (val result = userRepository.login(username, password)) {
+                            is AppResult.Success -> currentRoute = AppRoute.Home
+                            is AppResult.Error -> authErrorMessage = result.message
+                        }
+                        authLoading = false
+                    }
                 },
                 onRegister = { username, nickname, email, password ->
-                    userRepository.register(username, nickname, email, password)
-                    currentRoute = AppRoute.Home
+                    scope.launch {
+                        authLoading = true
+                        authErrorMessage = null
+                        when (val result = userRepository.register(username, nickname, email, password)) {
+                            is AppResult.Success -> currentRoute = AppRoute.Home
+                            is AppResult.Error -> authErrorMessage = result.message
+                        }
+                        authLoading = false
+                    }
                 },
+                loading = authLoading,
+                errorMessage = authErrorMessage,
             )
 
             AppRoute.Home -> HomeRoute(
@@ -222,15 +247,23 @@ fun YingRenShengApp() {
 
             AppRoute.Works -> WorksRoute()
 
+            AppRoute.Orders -> OrdersRoute()
+
             AppRoute.Profile -> ProfileRoute(
-                onOpenMember = { navigate(AppRoute.MemberCenter) },
+                onOpenProfileDetail = { navigate(AppRoute.ProfileDetail) },
+                onOpenQr = { navigate(AppRoute.ProfileQr) },
                 onOpenOrders = { navigate(AppRoute.Orders) },
-                onOpenAgency = { navigate(AppRoute.AgencyEntry) },
+                onOpenWorks = { navigate(AppRoute.Works) },
+                onOpenSettings = { navigate(AppRoute.Settings) },
             )
 
-            AppRoute.MemberCenter -> MemberCenterRoute()
+            AppRoute.ProfileDetail -> ProfileDetailRoute()
 
-            AppRoute.Orders -> OrdersRoute()
+            AppRoute.ProfileQr -> UserQrRoute()
+
+            AppRoute.Settings -> SettingsRoute()
+
+            AppRoute.MemberCenter -> MemberCenterRoute()
 
             AppRoute.AgencyEntry -> AgencyEntryRoute()
         }

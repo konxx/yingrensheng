@@ -24,6 +24,9 @@ object AppRoute {
 
     const val Works = "works"
     const val Profile = "profile"
+    const val ProfileDetail = "profile/detail"
+    const val ProfileQr = "profile/qr"
+    const val Settings = "profile/settings"
     const val MemberCenter = "member/center"
     const val Orders = "order/list"
     const val AgencyEntry = "agency/entry"

@@ -11,7 +11,7 @@ from app.schemas.project import CreateProjectRequest, ProjectDetail
 from app.schemas.scene import SceneListItem
 from app.schemas.task import TaskStatusResponse
 from app.schemas.upload import UploadInitiateRequest, UploadInitiateResponse, UploadStatusResponse
-from app.schemas.user import MemberMeResponse, UserProfile
+from app.schemas.user import MemberMeResponse, UpdateUserProfileRequest, UserProfile
 
 
 @dataclass
@@ -74,6 +74,17 @@ class UserService:
             remainingExportCount=3,
             activePlanPriceLabel="年卡 ¥168",
         )
+
+    def update_profile(self, payload: UpdateUserProfileRequest) -> UserProfile:
+        profile = self.repository.update_profile(
+            user_id=payload.user_id,
+            username=payload.username,
+            nickname=payload.nickname,
+            email=payload.email,
+        )
+        if profile is None:
+            raise ValueError("USER_NOT_FOUND")
+        return profile
 
 
 @dataclass

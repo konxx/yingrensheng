@@ -11,6 +11,15 @@ class UserProfile(BaseModel):
     avatar_url: str = Field(alias="avatarUrl", default="")
 
 
+class UpdateUserProfileRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    user_id: str = Field(alias="userId")
+    username: str
+    email: str
+    nickname: str
+
+
 class MemberMeResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 

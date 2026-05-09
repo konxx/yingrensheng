@@ -1,10 +1,14 @@
+from pathlib import Path
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -20,7 +24,7 @@ class Settings(BaseSettings):
     mysql_user: str = Field(default="root", alias="MYSQL_USER")
     mysql_password: str = Field(default="change_me", alias="MYSQL_PASSWORD")
     mysql_database: str = Field(default="yingrensheng", alias="MYSQL_DATABASE")
-    sqlite_path: str = Field(default="./yingrensheng.db", alias="SQLITE_PATH")
+    sqlite_path: str = Field(default=str(BASE_DIR / "yingrensheng.db"), alias="SQLITE_PATH")
 
     @property
     def sqlalchemy_database_url(self) -> str:

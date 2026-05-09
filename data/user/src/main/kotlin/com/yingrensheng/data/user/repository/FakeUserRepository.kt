@@ -1,5 +1,6 @@
 package com.yingrensheng.data.user.repository
 
+import com.yingrensheng.core.common.result.AppResult
 import com.yingrensheng.core.model.user.User
 import com.yingrensheng.core.model.user.UserSession
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +23,7 @@ class FakeUserRepository : UserRepository {
         sessionState.value = sessionState.value.copy(hasAcceptedAgreement = true)
     }
 
-    override fun login(username: String, password: String) {
+    override suspend fun login(username: String, password: String): AppResult<Unit> {
         val nickname = if (username == "admin") "Administrator" else "林青"
         sessionState.value = sessionState.value.copy(
             user = User(
@@ -33,9 +34,10 @@ class FakeUserRepository : UserRepository {
                 avatarLabel = nickname.take(2),
             ),
         )
+        return AppResult.Success(Unit)
     }
 
-    override fun register(username: String, nickname: String, email: String, password: String) {
+    override suspend fun register(username: String, nickname: String, email: String, password: String): AppResult<Unit> {
         sessionState.value = sessionState.value.copy(
             user = User(
                 userId = "user_fake_register",
@@ -45,5 +47,24 @@ class FakeUserRepository : UserRepository {
                 avatarLabel = nickname.take(2),
             ),
         )
+        return AppResult.Success(Unit)
+    }
+
+    override suspend fun updateProfile(
+        userId: String,
+        username: String,
+        nickname: String,
+        email: String,
+    ): AppResult<Unit> {
+        sessionState.value = sessionState.value.copy(
+            user = User(
+                userId = userId,
+                username = username,
+                email = email,
+                nickname = nickname,
+                avatarLabel = nickname.take(2),
+            ),
+        )
+        return AppResult.Success(Unit)
     }
 }

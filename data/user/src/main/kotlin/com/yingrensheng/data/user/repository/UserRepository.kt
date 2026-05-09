@@ -1,5 +1,6 @@
 package com.yingrensheng.data.user.repository
 
+import com.yingrensheng.core.common.result.AppResult
 import com.yingrensheng.core.model.user.UserSession
 import kotlinx.coroutines.flow.StateFlow
 
@@ -10,9 +11,11 @@ interface UserRepository {
 
     fun acceptAgreement()
 
-    fun login(username: String, password: String = "123456")
+    suspend fun login(username: String, password: String = "123456"): AppResult<Unit>
 
-    fun register(username: String, nickname: String, email: String, password: String)
+    suspend fun register(username: String, nickname: String, email: String, password: String): AppResult<Unit>
+
+    suspend fun updateProfile(userId: String, username: String, nickname: String, email: String): AppResult<Unit>
 }
 
 object UserRepositoryProvider {

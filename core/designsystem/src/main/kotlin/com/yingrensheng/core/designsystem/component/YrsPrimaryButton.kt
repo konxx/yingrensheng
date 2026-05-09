@@ -9,7 +9,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.yingrensheng.core.designsystem.theme.AmberAccent
+import com.yingrensheng.core.designsystem.theme.WeUiGreen
+import com.yingrensheng.core.designsystem.theme.WeUiGreenPressed
 
 @Composable
 fun YrsPrimaryButton(
@@ -22,13 +23,13 @@ fun YrsPrimaryButton(
         modifier = modifier.fillMaxWidth(),
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = AmberAccent,
+            containerColor = WeUiGreen,
             contentColor = MaterialTheme.colorScheme.surface,
+            disabledContainerColor = WeUiGreenPressed.copy(alpha = 0.45f),
         ),
     ) {
         Text(text = text)
     }
 }
-

@@ -1,6 +1,7 @@
 package com.yingrensheng.data.user.repository
 
 import com.google.gson.reflect.TypeToken
+import com.yingrensheng.core.common.result.AppResult
 import com.yingrensheng.core.model.user.User
 import com.yingrensheng.core.model.user.UserSession
 import com.yingrensheng.core.network.NetworkApiResponse
@@ -9,9 +10,11 @@ import com.yingrensheng.core.network.YrsApiConfig
 import com.yingrensheng.core.network.requireData
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 class NetworkUserRepository(
     private val apiClient: SimpleApiClient,
@@ -43,8 +46,9 @@ class NetworkUserRepository(
         sessionState.value = sessionState.value.copy(hasAcceptedAgreement = true)
     }
 
-    override fun login(username: String, password: String) {
-        runCatching {
+    override suspend fun login(username: String, password: String): AppResult<Unit> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
             val loginType = object : TypeToken<NetworkApiResponse<LoginResponse>>() {}.type
             val envelope: NetworkApiResponse<LoginResponse> = apiClient.post(
                 path = "/auth/login",
@@ -66,15 +70,16 @@ class NetworkUserRepository(
                     avatarLabel = response.user.nickname.take(2),
                 ),
             )
-        }.onFailure {
-            fallback.acceptAgreement()
-            fallback.login(username, password)
-            sessionState.value = fallback.session().value
+                AppResult.Success(Unit)
+            }.getOrElse { throwable ->
+                AppResult.Error(message = throwable.message ?: "登录失败", cause = throwable)
+            }
         }
     }
 
-    override fun register(username: String, nickname: String, email: String, password: String) {
-        runCatching {
+    override suspend fun register(username: String, nickname: String, email: String, password: String): AppResult<Unit> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
             val registerType = object : TypeToken<NetworkApiResponse<LoginResponse>>() {}.type
             val envelope: NetworkApiResponse<LoginResponse> = apiClient.post(
                 path = "/auth/register",
@@ -96,10 +101,46 @@ class NetworkUserRepository(
                     avatarLabel = response.user.nickname.take(2),
                 ),
             )
-        }.onFailure {
-            fallback.acceptAgreement()
-            fallback.register(username = username, nickname = nickname, email = email, password = password)
-            sessionState.value = fallback.session().value
+                AppResult.Success(Unit)
+            }.getOrElse { throwable ->
+                AppResult.Error(message = throwable.message ?: "注册失败", cause = throwable)
+            }
+        }
+    }
+
+    override suspend fun updateProfile(
+        userId: String,
+        username: String,
+        nickname: String,
+        email: String,
+    ): AppResult<Unit> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val updateType = object : TypeToken<NetworkApiResponse<LoginUser>>() {}.type
+                val envelope: NetworkApiResponse<LoginUser> = apiClient.post(
+                    path = "/users/profile/update",
+                    body = mapOf(
+                        "userId" to userId,
+                        "username" to username,
+                        "nickname" to nickname,
+                        "email" to email,
+                    ),
+                    type = updateType,
+                )
+                val response = envelope.requireData()
+                sessionState.value = sessionState.value.copy(
+                    user = User(
+                        userId = response.userId,
+                        username = response.username,
+                        email = response.email,
+                        nickname = response.nickname,
+                        avatarLabel = response.nickname.take(2),
+                    ),
+                )
+                AppResult.Success(Unit)
+            }.getOrElse { throwable ->
+                AppResult.Error(message = throwable.message ?: "资料更新失败", cause = throwable)
+            }
         }
     }
 

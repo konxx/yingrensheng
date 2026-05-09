@@ -10,7 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.yingrensheng.core.designsystem.theme.FilmPaperDeep
+import com.yingrensheng.core.designsystem.theme.WeUiBackgroundMuted
 
 @Composable
 fun InfoPill(
@@ -19,7 +19,7 @@ fun InfoPill(
 ) {
     Row(
         modifier = modifier
-            .background(FilmPaperDeep, RoundedCornerShape(100.dp))
+            .background(WeUiBackgroundMuted, RoundedCornerShape(100.dp))
             .padding(PaddingValues(horizontal = 12.dp, vertical = 8.dp)),
     ) {
         Text(
