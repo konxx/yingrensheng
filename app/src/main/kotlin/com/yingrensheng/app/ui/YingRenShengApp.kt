@@ -253,7 +253,7 @@ fun YingRenShengApp() {
                 onOpenProfileDetail = { navigate(AppRoute.ProfileDetail) },
                 onOpenQr = { navigate(AppRoute.ProfileQr) },
                 onOpenOrders = { navigate(AppRoute.Orders) },
-                onOpenWorks = { navigate(AppRoute.Works) },
+                onOpenMember = { navigate(AppRoute.MemberCenter) },
                 onOpenSettings = { navigate(AppRoute.Settings) },
             )
 

@@ -42,7 +42,7 @@ fun ProfileRoute(
     onOpenProfileDetail: () -> Unit,
     onOpenQr: () -> Unit,
     onOpenOrders: () -> Unit,
-    onOpenWorks: () -> Unit,
+    onOpenMember: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val session by UserRepositoryProvider.current.session().collectAsState()
@@ -138,9 +138,9 @@ fun ProfileRoute(
                 )
                 HorizontalDivider(color = WeUiBorder)
                 ProfileCell(
-                    title = "我的创作",
-                    subtitle = "管理作品、草稿和进行中的项目",
-                    onClick = onOpenWorks,
+                    title = "会员权益",
+                    subtitle = "查看 Lite / Pro / Max 套餐与订阅价格",
+                    onClick = onOpenMember,
                 )
                 HorizontalDivider(color = WeUiBorder)
                 ProfileCell(
