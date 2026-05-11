@@ -23,6 +23,7 @@ object AppRoute {
     const val ExportProcessing = "order/export_processing"
 
     const val Works = "works"
+    const val WorkDetail = "works/detail"
     const val Profile = "profile"
     const val ProfileDetail = "profile/detail"
     const val ProfileQr = "profile/qr"

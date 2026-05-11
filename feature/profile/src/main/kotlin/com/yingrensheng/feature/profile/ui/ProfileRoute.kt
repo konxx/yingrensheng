@@ -24,6 +24,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,9 +37,13 @@ import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.theme.WeUiAvatar
 import com.yingrensheng.core.designsystem.theme.WeUiBackground
 import com.yingrensheng.core.designsystem.theme.WeUiBorder
+import com.yingrensheng.core.designsystem.theme.WeUiGold
+import com.yingrensheng.core.designsystem.theme.WeUiGoldBright
+import com.yingrensheng.core.designsystem.theme.WeUiLiteRed
 import com.yingrensheng.core.designsystem.theme.WeUiQr
 import com.yingrensheng.core.designsystem.theme.WeUiSurface
 import com.yingrensheng.core.designsystem.theme.WeUiTextSecondary
+import com.yingrensheng.data.member.repository.MemberRepositoryProvider
 import com.yingrensheng.data.user.repository.UserRepositoryProvider
 
 @Composable
@@ -46,6 +55,7 @@ fun ProfileRoute(
     onOpenSettings: () -> Unit,
 ) {
     val session by UserRepositoryProvider.current.session().collectAsState()
+    val memberInfo = MemberRepositoryProvider.current.getMemberInfo()
     val user = session.user
     val nickname = user?.nickname ?: "未登录用户"
     val yingId = "映ID: ${user?.username ?: "guest"}"
@@ -95,10 +105,16 @@ fun ProfileRoute(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text(
-                        text = nickname,
-                        style = MaterialTheme.typography.headlineMedium,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = nickname,
+                            style = MaterialTheme.typography.headlineMedium,
+                        )
+                        MemberBadge(levelName = memberInfo.levelName)
+                    }
                     Text(
                         text = yingId,
                         style = MaterialTheme.typography.bodyLarge,
@@ -151,6 +167,43 @@ fun ProfileRoute(
             }
         }
     }
+}
+
+@Composable
+private fun MemberBadge(levelName: String) {
+    val normalizedLevel = when {
+        levelName.contains("max", ignoreCase = true) -> "Max"
+        levelName.contains("pro", ignoreCase = true) -> "Pro"
+        else -> "Lite"
+    }
+    val transition = rememberInfiniteTransition(label = "memberBadge")
+    val pulseAlpha by transition.animateFloat(
+        initialValue = 0.68f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "memberBadgeAlpha",
+    )
+    val accentColor = when (normalizedLevel) {
+        "Max" -> WeUiGoldBright
+        "Pro" -> WeUiGold
+        else -> WeUiLiteRed
+    }
+    val badgeAlpha = if (normalizedLevel == "Max") pulseAlpha else 1f
+
+    Text(
+        text = normalizedLevel,
+        modifier = Modifier
+            .clip(RoundedCornerShape(100.dp))
+            .background(accentColor.copy(alpha = 0.14f * badgeAlpha))
+            .border(1.dp, accentColor.copy(alpha = badgeAlpha), RoundedCornerShape(100.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        color = accentColor,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+    )
 }
 
 @Composable

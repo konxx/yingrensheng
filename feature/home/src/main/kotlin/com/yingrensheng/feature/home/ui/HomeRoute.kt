@@ -18,7 +18,6 @@ import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
 import com.yingrensheng.core.ui.component.InfoPill
 import com.yingrensheng.core.ui.component.SectionHeader
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
-import com.yingrensheng.data.member.repository.MemberRepositoryProvider
 import com.yingrensheng.data.project.repository.ProjectRepositoryProvider
 import com.yingrensheng.data.user.repository.UserRepositoryProvider
 
@@ -29,10 +28,8 @@ fun HomeRoute(
 ) {
     val userRepository = UserRepositoryProvider.current
     val projectRepository = ProjectRepositoryProvider.current
-    val memberRepository = MemberRepositoryProvider.current
     val session by userRepository.session().collectAsState()
     val projects by projectRepository.observeProjects().collectAsState()
-    val memberInfo = memberRepository.getMemberInfo()
     val latestProject = projects.firstOrNull()
 
     YrsScaffold(
@@ -73,20 +70,6 @@ fun HomeRoute(
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf("旅行纪念", "人生回忆", "节庆祝福", "主角故事").forEach { label ->
                 InfoPill(text = label)
-            }
-        }
-
-        SectionHeader(title = "会员权益")
-        YrsSurfaceCard {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(text = memberInfo.levelName, style = MaterialTheme.typography.titleLarge)
-                Text(text = memberInfo.subtitle)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    memberInfo.benefits.forEach { benefit ->
-                        InfoPill(text = benefit)
-                    }
-                }
-                Text(text = "${memberInfo.highlightLabel} · ${memberInfo.activePlanPriceLabel}")
             }
         }
     }

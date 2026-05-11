@@ -23,7 +23,7 @@ fun PaymentRoute(
 
     YrsScaffold(
         title = "确认支付与权益使用",
-        subtitle = "真实版本这里会接支付签名与结果查询；当前先把导出闭环跑通。",
+        subtitle = "当前是开发版假下单，但会真实创建导出任务并回写到创作状态流。",
     ) {
         selectedPlan?.let { plan ->
             YrsSurfaceCard {

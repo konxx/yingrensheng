@@ -20,10 +20,14 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.yingrensheng.app.data.LoginPreferenceStore
 import com.yingrensheng.core.navigation.route.AppRoute
 import com.yingrensheng.core.navigation.route.TopLevelDestination
 import com.yingrensheng.core.navigation.route.topLevelDestinations
 import com.yingrensheng.core.common.result.AppResult
+import com.yingrensheng.core.model.project.CreationMode
+import com.yingrensheng.core.model.work.Work
+import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
 import com.yingrensheng.data.user.repository.UserRepositoryProvider
 import com.yingrensheng.feature.agency.ui.AgencyEntryRoute
 import com.yingrensheng.feature.auth.ui.AgreementRoute
@@ -50,6 +54,7 @@ import com.yingrensheng.feature.profile.ui.ProfileDetailRoute
 import com.yingrensheng.feature.profile.ui.ProfileRoute
 import com.yingrensheng.feature.profile.ui.SettingsRoute
 import com.yingrensheng.feature.profile.ui.UserQrRoute
+import com.yingrensheng.feature.works.ui.WorkDetailRoute
 import com.yingrensheng.feature.works.ui.WorksRoute
 
 @Composable
@@ -58,7 +63,10 @@ fun YingRenShengApp() {
     val activity = context as? Activity
     val scope = rememberCoroutineScope()
     val userRepository = UserRepositoryProvider.current
+    val creationRepository = CreationRepositoryProvider.current
     val session by userRepository.session().collectAsState()
+    val creationSession by creationRepository.observeSession().collectAsState()
+    val loginPreferenceStore = remember(context) { LoginPreferenceStore(context) }
     var backendReady by remember { mutableStateOf<Boolean?>(null) }
     var backendProbeVersion by remember { mutableStateOf(0) }
     var currentRoute by remember { mutableStateOf(AppRoute.BackendCheck) }
@@ -66,6 +74,8 @@ fun YingRenShengApp() {
     var lastHomeBackPressedAt by remember { mutableStateOf(0L) }
     var authLoading by remember { mutableStateOf(false) }
     var authErrorMessage by remember { mutableStateOf<String?>(null) }
+    var lastLoginUsername by remember { mutableStateOf(loginPreferenceStore.lastUsername()) }
+    var selectedWork by remember { mutableStateOf<Work?>(null) }
     val showBottomBar = currentRoute in topLevelDestinations.map(TopLevelDestination::route)
 
     fun resolvePostBackendRoute(): String {
@@ -168,7 +178,11 @@ fun YingRenShengApp() {
                         authLoading = true
                         authErrorMessage = null
                         when (val result = userRepository.login(username, password)) {
-                            is AppResult.Success -> currentRoute = AppRoute.Home
+                            is AppResult.Success -> {
+                                loginPreferenceStore.saveLastUsername(username)
+                                lastLoginUsername = username
+                                currentRoute = AppRoute.Home
+                            }
                             is AppResult.Error -> authErrorMessage = result.message
                         }
                         authLoading = false
@@ -179,7 +193,11 @@ fun YingRenShengApp() {
                         authLoading = true
                         authErrorMessage = null
                         when (val result = userRepository.register(username, nickname, email, password)) {
-                            is AppResult.Success -> currentRoute = AppRoute.Home
+                            is AppResult.Success -> {
+                                loginPreferenceStore.saveLastUsername(username)
+                                lastLoginUsername = username
+                                currentRoute = AppRoute.Home
+                            }
                             is AppResult.Error -> authErrorMessage = result.message
                         }
                         authLoading = false
@@ -187,6 +205,7 @@ fun YingRenShengApp() {
                 },
                 loading = authLoading,
                 errorMessage = authErrorMessage,
+                initialUsername = lastLoginUsername,
             )
 
             AppRoute.Home -> HomeRoute(
@@ -206,7 +225,15 @@ fun YingRenShengApp() {
             )
 
             AppRoute.MaterialReview -> MaterialReviewRoute(
-                onContinue = { navigate(AppRoute.Interview) },
+                onContinue = {
+                    navigate(
+                        if (creationSession.mode == CreationMode.QUICK_FILM) {
+                            AppRoute.StyleSelect
+                        } else {
+                            AppRoute.Interview
+                        },
+                    )
+                },
             )
 
             AppRoute.Interview -> InterviewRoute(
@@ -245,7 +272,14 @@ fun YingRenShengApp() {
                 onBackToWorks = { popBackTo(AppRoute.Works) },
             )
 
-            AppRoute.Works -> WorksRoute()
+            AppRoute.Works -> WorksRoute(
+                onOpenWork = { work ->
+                    selectedWork = work
+                    navigate(AppRoute.WorkDetail)
+                },
+            )
+
+            AppRoute.WorkDetail -> WorkDetailRoute(work = selectedWork)
 
             AppRoute.Orders -> OrdersRoute()
 

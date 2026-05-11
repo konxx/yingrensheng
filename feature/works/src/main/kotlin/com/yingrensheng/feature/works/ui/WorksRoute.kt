@@ -2,6 +2,7 @@ package com.yingrensheng.feature.works.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -19,18 +20,21 @@ import com.yingrensheng.core.common.util.Formatters
 import com.yingrensheng.core.designsystem.theme.WeUiBorder
 import com.yingrensheng.core.designsystem.theme.WeUiSurface
 import com.yingrensheng.core.designsystem.theme.WeUiTextSecondary
+import com.yingrensheng.core.model.work.Work
 import com.yingrensheng.core.ui.component.InfoPill
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.work.repository.WorkRepositoryProvider
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun WorksRoute() {
+fun WorksRoute(
+    onOpenWork: (Work) -> Unit,
+) {
     val works = WorkRepositoryProvider.current.getWorks()
 
     YrsScaffold(
-        title = "我的创作",
-        subtitle = "作品、草稿与处理中的项目都会在这里回流，方便继续编辑和分享。",
+        title = "作品",
+        subtitle = "这里展示真实作品记录，点进每一张卡都可以继续查看当前状态和资源地址。",
     ) {
         Row(
             modifier = Modifier
@@ -51,6 +55,7 @@ fun WorksRoute() {
                     .fillMaxWidth()
                     .background(WeUiSurface, RoundedCornerShape(18.dp))
                     .border(1.dp, WeUiBorder, RoundedCornerShape(18.dp))
+                    .clickable { onOpenWork(work) }
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -68,6 +73,11 @@ fun WorksRoute() {
                     text = "推荐操作：继续编辑 / 分享 / 重新生成某一段",
                     style = MaterialTheme.typography.bodyMedium,
                     color = WeUiTextSecondary,
+                )
+                Text(
+                    text = "查看详情 >",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }

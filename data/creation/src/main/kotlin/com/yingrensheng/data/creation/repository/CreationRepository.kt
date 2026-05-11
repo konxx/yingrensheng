@@ -39,6 +39,8 @@ interface CreationRepository {
 
     fun importMaterials()
 
+    fun replaceMaterials(materials: List<MaterialItem>)
+
     fun updateThemeLine(themeLine: String)
 
     fun answerPrompt(promptId: String, answer: String)
@@ -125,6 +127,10 @@ class FakeCreationRepository(
 
     override fun importMaterials() {
         sessionState.value = sessionState.value.copy(materials = sampleMaterials())
+    }
+
+    override fun replaceMaterials(materials: List<MaterialItem>) {
+        sessionState.value = sessionState.value.copy(materials = materials)
     }
 
     override fun updateThemeLine(themeLine: String) {

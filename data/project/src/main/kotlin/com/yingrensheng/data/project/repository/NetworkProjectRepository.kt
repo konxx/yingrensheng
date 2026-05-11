@@ -10,9 +10,11 @@ import com.yingrensheng.core.network.SimpleApiClient
 import com.yingrensheng.core.network.YrsApiConfig
 import com.yingrensheng.core.network.requireData
 import java.time.Instant
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.runBlocking
 
 class NetworkProjectRepository(
     private val apiClient: SimpleApiClient,
@@ -31,7 +33,8 @@ class NetworkProjectRepository(
     }
 
     override fun createDraft(title: String, sceneType: String, mode: CreationMode): Project {
-        return runCatching {
+        return runBlocking(Dispatchers.IO) {
+            runCatching {
             val sceneId = when (sceneType) {
                 "旅行纪念" -> "scene_travel"
                 "人生回忆" -> "scene_memory"
@@ -53,24 +56,27 @@ class NetworkProjectRepository(
             val project = payload.toModel()
             projectsState.value = listOf(project) + projectsState.value.filterNot { it.projectId == project.projectId }
             project
-        }.getOrElse {
-            val project = fallback.createDraft(title = title, sceneType = sceneType, mode = mode)
-            projectsState.value = fallback.observeProjects().value
-            project
+            }.getOrElse {
+                val project = fallback.createDraft(title = title, sceneType = sceneType, mode = mode)
+                projectsState.value = fallback.observeProjects().value
+                project
+            }
         }
     }
 
     private fun refreshProjects() {
-        runCatching {
-            val responseType = object : TypeToken<NetworkApiResponse<NetworkPage<ProjectPayload>>>() {}.type
-            val envelope: NetworkApiResponse<NetworkPage<ProjectPayload>> = apiClient.get(
-                path = "/projects?page=1&pageSize=20",
-                type = responseType,
-            )
-            val payload = envelope.requireData()
-            projectsState.value = payload.items.map { it.toModel() }
-        }.onFailure {
-            projectsState.value = fallback.observeProjects().value
+        runBlocking(Dispatchers.IO) {
+            runCatching {
+                val responseType = object : TypeToken<NetworkApiResponse<NetworkPage<ProjectPayload>>>() {}.type
+                val envelope: NetworkApiResponse<NetworkPage<ProjectPayload>> = apiClient.get(
+                    path = "/projects?page=1&pageSize=20",
+                    type = responseType,
+                )
+                val payload = envelope.requireData()
+                projectsState.value = payload.items.map { it.toModel() }
+            }.onFailure {
+                projectsState.value = fallback.observeProjects().value
+            }
         }
     }
 

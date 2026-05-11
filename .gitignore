@@ -23,6 +23,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
+htmlcov/
 .venv/
 venv/
 env/
@@ -30,6 +32,12 @@ env/
 .env.*
 *.db
 *.sqlite3
+*.log
+logs/
+
+# Server runtime artifacts
+server/storage/
+server/server_test_upload.jpg
 
 # OS / editor
 .DS_Store

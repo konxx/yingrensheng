@@ -3,6 +3,7 @@ package com.yingrensheng.feature.auth.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
@@ -13,6 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
@@ -24,12 +30,13 @@ fun LoginRoute(
     onRegister: (username: String, nickname: String, email: String, password: String) -> Unit,
     loading: Boolean,
     errorMessage: String?,
+    initialUsername: String,
 ) {
     var isRegisterMode by remember { mutableStateOf(false) }
-    var username by remember { mutableStateOf("demo") }
-    var nickname by remember { mutableStateOf("新用户") }
-    var email by remember { mutableStateOf("new@yingrensheng.local") }
-    var password by remember { mutableStateOf("123456") }
+    var username by remember(initialUsername) { mutableStateOf(initialUsername) }
+    var nickname by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
     YrsScaffold(
         title = if (isRegisterMode) "注册后开始创作" else "登录后继续创作",
@@ -82,6 +89,8 @@ fun LoginRoute(
                     onValueChange = { password = it },
                     label = { Text("密码") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    visualTransformation = AsteriskPasswordVisualTransformation,
                 )
                 YrsPrimaryButton(
                     text = if (isRegisterMode) "注册并进入映人生" else "登录进入映人生",
@@ -110,5 +119,14 @@ fun LoginRoute(
                 }
             }
         }
+    }
+}
+
+private object AsteriskPasswordVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        return TransformedText(
+            text = AnnotatedString("*".repeat(text.text.length)),
+            offsetMapping = OffsetMapping.Identity,
+        )
     }
 }
