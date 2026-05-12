@@ -36,11 +36,13 @@ class NetworkProjectRepository(
         return runBlocking(Dispatchers.IO) {
             runCatching {
             val sceneId = when (sceneType) {
-                "旅行纪念" -> "scene_travel"
-                "人生回忆" -> "scene_memory"
-                "节庆祝福" -> "scene_festival"
-                "主角故事" -> "scene_hero"
-                else -> "scene_travel"
+                "西游记角色穿越" -> "scene_character_xiyou"
+                "红楼梦角色穿越" -> "scene_character_honglou"
+                "融合历史小说" -> "scene_outline_history"
+                "原创故事小说" -> "scene_outline_original"
+                "生成连环漫画" -> "scene_media_comic"
+                "生成短视频" -> "scene_media_short_video"
+                else -> "scene_outline_original"
             }
             val responseType = object : TypeToken<NetworkApiResponse<ProjectPayload>>() {}.type
             val envelope: NetworkApiResponse<ProjectPayload> = apiClient.post(
@@ -109,7 +111,7 @@ private fun ProjectPayload.toModel(): Project {
         projectId = projectId,
         title = title,
         sceneType = sceneTitle,
-        mode = runCatching { CreationMode.valueOf(mode) }.getOrDefault(CreationMode.QUICK_FILM),
+        mode = runCatching { CreationMode.valueOf(mode) }.getOrDefault(CreationMode.CHARACTER_TIME_TRAVEL),
         status = when (status) {
             "PREVIEW_READY" -> ProjectStatus.PREVIEW_READY
             "GENERATING" -> ProjectStatus.GENERATING
@@ -119,7 +121,12 @@ private fun ProjectPayload.toModel(): Project {
         progress = progress,
         currentStep = currentStep,
         materialCount = materialCount,
-        moodLabel = "后端同步",
+        moodLabel = when (mode) {
+            "CHARACTER_TIME_TRAVEL" -> "角色穿越"
+            "OUTLINE_STORY" -> "故事创作"
+            "NOVEL_TO_MEDIA" -> "小说成片"
+            else -> "后端同步"
+        },
         updatedAt = runCatching { Instant.parse(updatedAt) }.getOrDefault(Instant.now()),
     )
 }

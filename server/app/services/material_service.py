@@ -1,6 +1,5 @@
 import hashlib
 import os
-import threading
 import uuid
 from pathlib import Path
 
@@ -12,7 +11,6 @@ from app.repositories.material_repository import MaterialRepository
 from app.repositories.upload_repository import UploadRepository
 from app.schemas.material import MaterialResponse
 from app.schemas.upload import UploadInitiateRequest
-from app.services.vod_client import VodStorageClient
 
 
 class MaterialService:
@@ -20,11 +18,9 @@ class MaterialService:
         self,
         material_repository: MaterialRepository,
         upload_repository: UploadRepository,
-        vod_client: VodStorageClient,
     ) -> None:
         self.material_repository = material_repository
         self.upload_repository = upload_repository
-        self.vod_client = vod_client
         self.material_root = Path(settings.storage_root).resolve() / "materials"
         self.material_root.mkdir(parents=True, exist_ok=True)
 
@@ -62,7 +58,7 @@ class MaterialService:
                 title=Path(upload_file.filename or safe_name).stem,
                 material_type=material_type,
                 duration_label="-",
-                insight="已本地保存，等待上传到火山 VOD",
+                insight="已本地保存，可用于后续 AI 生成",
                 local_path=str(target_path),
                 file_name=upload_file.filename or safe_name,
                 mime_type=upload_file.content_type or "application/octet-stream",
@@ -71,32 +67,10 @@ class MaterialService:
                 upload_id=upload_response.upload_id,
             )
             responses.append(material)
-            self._upload_to_vod_async(material)
         return responses
 
     def list_materials(self, project_id: str) -> list[MaterialResponse]:
         return self.material_repository.list_by_project(project_id)
-
-    def _upload_to_vod_async(self, material: MaterialResponse) -> None:
-        def worker() -> None:
-            try:
-                object_name = f"{material.project_id}/{material.material_id}/{Path(material.local_path).name}"
-                vid = self.vod_client.upload_file(material.local_path, object_name=object_name)
-                self.material_repository.update_vod_status(
-                    material_id=material.material_id,
-                    status="VOD_UPLOADED",
-                    insight="已上传至火山 VOD，可参与后续渲染与预览",
-                    vod_vid=vid,
-                )
-            except Exception as exc:
-                self.material_repository.update_vod_status(
-                    material_id=material.material_id,
-                    status="VOD_UPLOAD_FAILED",
-                    insight=f"VOD 上传失败：{exc}",
-                    vod_vid=None,
-                )
-
-        threading.Thread(target=worker, daemon=True).start()
 
     @staticmethod
     def _material_type(mime_type: str) -> str:

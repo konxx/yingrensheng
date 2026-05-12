@@ -48,11 +48,14 @@ def get_project_materials(project_id: str) -> ApiResponse[list[MaterialResponse]
 
 @router.post("/{project_id}/story-draft/generate", response_model=ApiResponse[TaskStatusResponse])
 def generate_story_draft(project_id: str, payload: StoryDraftGenerateRequest) -> ApiResponse[TaskStatusResponse]:
-    task = service_container.creation_service.generate_story_draft(
-        project_id=project_id,
-        style_id=payload.style_id,
-        theme_line=payload.theme_line,
-    )
+    try:
+        task = service_container.creation_service.generate_story_draft(
+            project_id=project_id,
+            style_id=payload.style_id,
+            theme_line=payload.theme_line,
+        )
+    except ValueError as exc:
+        raise _project_http_exception(exc) from exc
     return ApiResponse.success(data=task, request_id="req_story_draft_generate")
 
 
@@ -66,7 +69,10 @@ def get_story_draft(project_id: str) -> ApiResponse[StoryDraftResponse]:
 
 @router.post("/{project_id}/storyboard/generate", response_model=ApiResponse[TaskStatusResponse])
 def generate_storyboard(project_id: str) -> ApiResponse[TaskStatusResponse]:
-    task = service_container.creation_service.generate_storyboard(project_id)
+    try:
+        task = service_container.creation_service.generate_storyboard(project_id)
+    except ValueError as exc:
+        raise _project_http_exception(exc) from exc
     return ApiResponse.success(data=task, request_id="req_storyboard_generate")
 
 
@@ -78,7 +84,10 @@ def get_storyboard(project_id: str) -> ApiResponse[list[StoryboardSectionRespons
 
 @router.post("/{project_id}/preview/generate", response_model=ApiResponse[TaskStatusResponse])
 def generate_preview(project_id: str) -> ApiResponse[TaskStatusResponse]:
-    task = service_container.creation_service.generate_preview(project_id)
+    try:
+        task = service_container.creation_service.generate_preview(project_id)
+    except ValueError as exc:
+        raise _project_http_exception(exc) from exc
     return ApiResponse.success(data=task, request_id="req_preview_generate")
 
 
@@ -88,3 +97,13 @@ def get_preview(project_id: str) -> ApiResponse[PreviewAssetResponse]:
     if preview is None:
         raise HTTPException(status_code=404, detail="PREVIEW_NOT_FOUND")
     return ApiResponse.success(data=preview, request_id="req_preview_detail")
+
+
+def _project_http_exception(exc: ValueError) -> HTTPException:
+    code = str(exc)
+    status_code = {
+        "PROJECT_NOT_FOUND": 404,
+        "PREVIEW_PREREQUISITES_MISSING": 409,
+        "EXPORT_PREREQUISITES_MISSING": 409,
+    }.get(code, 400)
+    return HTTPException(status_code=status_code, detail=code)

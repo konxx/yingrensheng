@@ -20,14 +20,15 @@ fun MaterialReviewRoute(
     onContinue: () -> Unit,
 ) {
     val session by CreationRepositoryProvider.current.observeSession().collectAsState()
-    val isQuickFilm = session.mode == CreationMode.QUICK_FILM
+    val mode = session.mode
 
     YrsScaffold(
-        title = "素材已经完成上传与入库",
-        subtitle = if (isQuickFilm) {
-            "快速成片会在你确认素材后直接进入情绪选择，尽快生成第一版。"
-        } else {
-            "故事成片会在确认素材后进入访谈整理，先把想表达的主线说清楚。"
+        title = "输入已准备好",
+        subtitle = when (mode) {
+            CreationMode.CHARACTER_TIME_TRAVEL -> "确认人物照片和角色愿望后，AI 会继续追问身份、气质和世界观细节。"
+            CreationMode.OUTLINE_STORY -> "确认大纲后，AI 会整理冲突、时代质感和故事走向。"
+            CreationMode.NOVEL_TO_MEDIA -> "确认小说文本后，AI 会拆解人物、场景、情节节点和镜头形式。"
+            else -> "确认输入后继续。"
         },
     ) {
         session.materials.forEach { material ->
@@ -40,7 +41,7 @@ fun MaterialReviewRoute(
             }
         }
         YrsPrimaryButton(
-            text = if (isQuickFilm) "确认素材并继续快速成片" else "确认素材并进入故事访谈",
+            text = "确认并继续 AI 访谈",
             onClick = onContinue,
         )
     }

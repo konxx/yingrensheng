@@ -17,13 +17,16 @@ fun CreateEntryRoute(
 ) {
     val creationRepository = CreationRepositoryProvider.current
     YrsScaffold(
-        title = "先决定你想怎么开始",
-        subtitle = "快速成片强调 3 分钟见结果，故事成片更像 AI 导演陪你整理回忆。",
+        title = "选择创作方式",
+        subtitle = "先定输入方式：照片造角色、大纲写小说，或把已有小说改成漫画和短视频。",
     ) {
         creationRepository.creationModes().forEach { (mode, label) ->
             val subtitle = when (mode) {
-                CreationMode.QUICK_FILM -> "更适合旅行、节庆、祝福，少填信息先出片"
-                CreationMode.STORY_FILM -> "更适合人生回忆、重要关系表达与更完整叙事"
+                CreationMode.CHARACTER_TIME_TRAVEL -> "上传自拍或人物照，生成西游记、红楼梦等历史架空角色"
+                CreationMode.OUTLINE_STORY -> "输入一段大纲，融合历史小说或扩写成原创故事"
+                CreationMode.NOVEL_TO_MEDIA -> "粘贴小说，生成连环漫画分镜或短视频脚本"
+                CreationMode.QUICK_FILM -> "旧版快速成片入口"
+                CreationMode.STORY_FILM -> "旧版故事成片入口"
             }
             YrsSurfaceCard(
                 modifier = androidx.compose.ui.Modifier,
@@ -32,7 +35,7 @@ fun CreateEntryRoute(
                         Text(text = label, style = MaterialTheme.typography.titleLarge)
                         Text(text = subtitle)
                         com.yingrensheng.core.designsystem.component.YrsPrimaryButton(
-                            text = "选择 $label",
+                            text = "进入$label",
                             onClick = {
                                 creationRepository.selectMode(mode)
                                 onModeSelected()

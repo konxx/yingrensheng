@@ -8,11 +8,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
+import kotlinx.coroutines.launch
 
 @Composable
 fun StoryGeneratingRoute(
@@ -20,16 +25,30 @@ fun StoryGeneratingRoute(
 ) {
     val creationRepository = CreationRepositoryProvider.current
     val session by creationRepository.observeSession().collectAsState()
+    val scope = rememberCoroutineScope()
+    var generatingDraft by remember { mutableStateOf(false) }
+    var generatingStoryboard by remember { mutableStateOf(false) }
     val task = session.renderTask
 
     YrsScaffold(
-        title = "AI 正在编排故事板",
-        subtitle = "真实版本这里会接异步任务和轮询；当前原型先把关键状态结构跑通。",
+        title = "AI 正在编排改编结构",
+        subtitle = "这里预留异步任务和轮询；当前先跑通草稿、分镜、预览的主链路。",
     ) {
         if (task == null) {
             YrsPrimaryButton(
-                text = "开始编排",
-                onClick = { creationRepository.generateStoryDraft() },
+                text = if (generatingDraft) "生成中" else "开始生成",
+                onClick = {
+                    if (!generatingDraft) {
+                        scope.launch {
+                            generatingDraft = true
+                            try {
+                                creationRepository.generateStoryDraft()
+                            } finally {
+                                generatingDraft = false
+                            }
+                        }
+                    }
+                },
             )
         } else {
             YrsSurfaceCard {
@@ -40,10 +59,19 @@ fun StoryGeneratingRoute(
                 }
             }
             YrsPrimaryButton(
-                text = "查看故事板",
+                text = if (generatingStoryboard) "正在生成故事板" else "查看故事板",
                 onClick = {
-                    creationRepository.buildStoryboard()
-                    onContinue()
+                    if (!generatingStoryboard) {
+                        scope.launch {
+                            generatingStoryboard = true
+                            try {
+                                creationRepository.buildStoryboard()
+                                onContinue()
+                            } finally {
+                                generatingStoryboard = false
+                            }
+                        }
+                    }
                 },
             )
         }

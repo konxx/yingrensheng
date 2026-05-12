@@ -31,7 +31,7 @@ class NetworkUserRepository(
 
     override fun isBackendReachable(): Boolean {
         return runCatching {
-            val connection = (URL("http://10.0.2.2:3000/health").openConnection() as HttpURLConnection).apply {
+            val connection = (URL(YrsApiConfig.HealthUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 2_000
                 readTimeout = 2_000

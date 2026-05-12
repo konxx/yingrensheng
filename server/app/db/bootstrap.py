@@ -104,57 +104,76 @@ def _ensure_upload_columns() -> None:
         columns = {row[0] for row in conn.execute(text("SHOW COLUMNS FROM uploads"))}
         if "local_path" not in columns:
             conn.execute(text("ALTER TABLE uploads ADD COLUMN local_path VARCHAR(255) NULL"))
-        if "vod_vid" not in columns:
-            conn.execute(text("ALTER TABLE uploads ADD COLUMN vod_vid VARCHAR(128) NULL"))
-        if "vod_file_name" not in columns:
-            conn.execute(text("ALTER TABLE uploads ADD COLUMN vod_file_name VARCHAR(255) NULL"))
         conn.commit()
 
 
 def _seed_if_needed() -> None:
     Path(settings.storage_root).mkdir(parents=True, exist_ok=True)
     with SessionLocal() as session:
-        if not session.query(SceneModel).first():
-            session.add_all(
-                [
+        scene_seed_data = [
+            {
+                "scene_id": "scene_character_xiyou",
+                "title": "西游记角色穿越",
+                "subtitle": "上传自拍，把用户架空成唐僧、女儿国行者或取经路上的新角色",
+                "recommended_duration_label": "角色海报 + 短篇故事",
+                "estimated_time_label": "约 2 分钟",
+                "supported_material_types": ["PHOTO", "NOTE"],
+            },
+            {
+                "scene_id": "scene_character_honglou",
+                "title": "红楼梦角色穿越",
+                "subtitle": "把人物放进贾府关系网，生成贾宝玉式公子或新入园人物",
+                "recommended_duration_label": "角色设定 + 剧情片段",
+                "estimated_time_label": "约 2 分钟",
+                "supported_material_types": ["PHOTO", "NOTE"],
+            },
+            {
+                "scene_id": "scene_outline_history",
+                "title": "融合历史小说",
+                "subtitle": "把用户大纲融入名著、朝代、宫廷、武侠或架空历史",
+                "recommended_duration_label": "短篇小说 + 分镜",
+                "estimated_time_label": "约 3 分钟",
+                "supported_material_types": ["NOTE"],
+            },
+            {
+                "scene_id": "scene_outline_original",
+                "title": "原创故事小说",
+                "subtitle": "从一句灵感扩写成专属世界观、人物关系和章节梗概",
+                "recommended_duration_label": "短篇小说 + 连载大纲",
+                "estimated_time_label": "约 3 分钟",
+                "supported_material_types": ["NOTE"],
+            },
+            {
+                "scene_id": "scene_media_comic",
+                "title": "生成连环漫画",
+                "subtitle": "解析小说人物、场景和情节节点，输出 6-12 格漫画分镜",
+                "recommended_duration_label": "连环漫画脚本",
+                "estimated_time_label": "约 4 分钟",
+                "supported_material_types": ["NOTE"],
+            },
+            {
+                "scene_id": "scene_media_short_video",
+                "title": "生成短视频",
+                "subtitle": "把小说拆成镜头、旁白、字幕和封面建议，适合推文视频",
+                "recommended_duration_label": "30-90 秒短视频",
+                "estimated_time_label": "约 4 分钟",
+                "supported_material_types": ["NOTE"],
+            },
+        ]
+        for item in scene_seed_data:
+            existing_scene = session.query(SceneModel).filter(SceneModel.scene_id == item["scene_id"]).first()
+            if existing_scene is None:
+                session.add(
                     SceneModel(
-                        scene_id="scene_travel",
-                        title="旅行纪念",
-                        subtitle="把风景、人物和那一天的心情剪成短片",
-                        recommended_duration_label="30-60 秒",
-                        estimated_time_label="约 2 分钟",
+                        scene_id=item["scene_id"],
+                        title=item["title"],
+                        subtitle=item["subtitle"],
+                        recommended_duration_label=item["recommended_duration_label"],
+                        estimated_time_label=item["estimated_time_label"],
                         cover_url="",
-                        supported_material_types_json=json.dumps(["PHOTO", "VIDEO", "AUDIO", "NOTE"], ensure_ascii=False),
+                        supported_material_types_json=json.dumps(item["supported_material_types"], ensure_ascii=False),
                     ),
-                    SceneModel(
-                        scene_id="scene_memory",
-                        title="人生回忆",
-                        subtitle="适合老照片、录音和家庭故事整理",
-                        recommended_duration_label="60-180 秒",
-                        estimated_time_label="约 4 分钟",
-                        cover_url="",
-                        supported_material_types_json=json.dumps(["PHOTO", "VIDEO", "AUDIO", "NOTE"], ensure_ascii=False),
-                    ),
-                    SceneModel(
-                        scene_id="scene_festival",
-                        title="节庆祝福",
-                        subtitle="生日、毕业、纪念日都能快速出片",
-                        recommended_duration_label="30-45 秒",
-                        estimated_time_label="约 2 分钟",
-                        cover_url="",
-                        supported_material_types_json=json.dumps(["PHOTO", "VIDEO", "AUDIO", "NOTE"], ensure_ascii=False),
-                    ),
-                    SceneModel(
-                        scene_id="scene_hero",
-                        title="主角故事",
-                        subtitle="更强调人物表达与情绪推进",
-                        recommended_duration_label="45-90 秒",
-                        estimated_time_label="约 3 分钟",
-                        cover_url="",
-                        supported_material_types_json=json.dumps(["PHOTO", "VIDEO", "AUDIO", "NOTE"], ensure_ascii=False),
-                    ),
-                ],
-            )
+                )
 
         if not session.query(MemberPlanModel).first():
             session.add_all(
@@ -200,16 +219,16 @@ def _seed_if_needed() -> None:
             session.add(
                 ProjectModel(
                     project_id="project_seed_001",
-                    scene_id="scene_travel",
-                    scene_title="旅行纪念",
-                    mode="QUICK_FILM",
-                    title="大理五月风",
+                    scene_id="scene_character_xiyou",
+                    scene_title="西游记角色穿越",
+                    mode="CHARACTER_TIME_TRAVEL",
+                    title="我在女儿国当取经人",
                     status="PREVIEW_READY",
                     progress=100,
-                    current_step="首版已生成",
-                    material_count=24,
-                    theme_line="想把那天的晚风和笑声留下来",
-                    selected_style_id="style_warm",
+                    current_step="角色短剧已生成",
+                    material_count=2,
+                    theme_line="我想把这张照片里的主角架空成西游记里的取经人，温和但有命运感。",
+                    selected_style_id="style_classic",
                     updated_at=now_iso(),
                 ),
             )
@@ -233,10 +252,10 @@ def _seed_if_needed() -> None:
             session.add(
                 StoryDraftModel(
                     project_id="project_seed_001",
-                    title="旅行纪念 | 第一版故事",
-                    opening="从照片和视频里，先把那天最想留下的一刻轻轻拉近。",
-                    body="系统会围绕人物、风景和情绪节奏，把素材组织成一条能分享、也值得反复看的短片主线。",
-                    closing="最后留下的不只是风景，而是一起在场时最真实的心情。",
+                    title="西游记角色穿越 | 第一版创作草稿",
+                    opening="主角一睁眼，已身披素色僧衣，站在女儿国城门外。",
+                    body="系统会围绕用户照片气质、取经世界规则和第一场命运冲突，生成角色身份、人物关系和短视频改编主线。",
+                    closing="下一步可继续生成角色定妆图、连环漫画格和 30 秒短视频分镜。",
                     updated_at=now_iso(),
                 ),
             )
@@ -247,28 +266,28 @@ def _seed_if_needed() -> None:
                         section_id="section_seed_001",
                         project_id="project_seed_001",
                         order_index=0,
-                        title="开场",
-                        summary="用一张最有氛围感的照片和一句轻旁白拉开记忆。",
-                        subtitle_line="字幕：把风吹过的那一刻留下来",
-                        duration_label="00:10",
+                        title="身份亮相",
+                        summary="用角色定妆照建立取经人身份，背景是女儿国城门与薄雾晨光。",
+                        subtitle_line="字幕：他一睁眼，已站在旧故事的分岔口",
+                        duration_label="00:08",
                     ),
                     StoryboardSectionModel(
                         section_id="section_seed_002",
                         project_id="project_seed_001",
                         order_index=1,
-                        title="高光",
-                        summary="把骑行、笑声与晚霞镜头组合成情绪峰值。",
-                        subtitle_line="字幕：那些一路向前的画面都在发光",
-                        duration_label="00:22",
+                        title="冲突推进",
+                        summary="主角与女儿国国王第一次相见，既要守住取经使命，也被迫面对自己新的身份。",
+                        subtitle_line="字幕：旧规矩还在，他却先改了第一步",
+                        duration_label="00:18",
                     ),
                     StoryboardSectionModel(
                         section_id="section_seed_003",
                         project_id="project_seed_001",
                         order_index=2,
-                        title="收束",
-                        summary="用一张静止合照和一句收束旁白完成回落。",
-                        subtitle_line="字幕：原来最想记住的是一起在场",
-                        duration_label="00:16",
+                        title="悬念收束",
+                        summary="夜色降临，通关文牒上出现陌生姓名，暗示下一集命运改写。",
+                        subtitle_line="字幕：下一回，真正的考验才开始",
+                        duration_label="00:10",
                     ),
                 ],
             )
@@ -276,10 +295,10 @@ def _seed_if_needed() -> None:
             session.add(
                 PreviewAssetModel(
                     project_id="project_seed_001",
-                    title="旅行纪念 | 预览版",
-                    subtitle_summary="已生成三段式故事板，可继续换音乐、改字幕、补镜头。",
-                    music_label="配乐：温暖胶片",
-                    cover_caption="封面建议：晚霞合照 + 手写标题",
+                    title="西游记角色穿越 | 预览版",
+                    subtitle_summary="已生成角色设定和三段式分镜，可继续生成角色海报、漫画格或短视频。",
+                    music_label="配乐：古风悬念",
+                    cover_caption="封面建议：角色定妆照 + 女儿国城门",
                     video_url="",
                     cover_url="",
                     updated_at=now_iso(),
@@ -290,9 +309,9 @@ def _seed_if_needed() -> None:
                 WorkModel(
                     work_id="work_001",
                     project_id="project_seed_001",
-                    title="大理五月风",
-                    scene_label="旅行纪念",
-                    duration_label="00:48",
+                    title="我在女儿国当取经人",
+                    scene_label="西游记角色穿越",
+                    duration_label="角色海报 + 00:38",
                     status_label="已完成",
                     updated_at=now_iso(),
                     cover_url="",
@@ -306,7 +325,7 @@ def _seed_if_needed() -> None:
                         order_id="order_20260510_001",
                         user_id="user_001",
                         project_id="project_seed_001",
-                        title="大理五月风 导出",
+                        title="我在女儿国当取经人 导出",
                         amount_label="¥39.90",
                         export_spec="1080P 无水印",
                         status_label="已支付",

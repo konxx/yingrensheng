@@ -32,8 +32,8 @@ fun PreviewRoute(
     val preview = session.previewAsset
 
     YrsScaffold(
-        title = "首版成片预览",
-        subtitle = "现在先围绕高价值轻编辑来设计，而不是一上来就做重型多轨。",
+        title = "首版预览",
+        subtitle = "这里先展示可导出的创作包：故事稿、角色方向、分镜脚本、封面建议和后续成片信息。",
     ) {
         if (preview != null) {
             YrsSurfaceCard {
@@ -46,7 +46,7 @@ fun PreviewRoute(
                             .background(WeUiBackgroundMuted),
                     ) {
                         Text(
-                            text = "Preview Frame",
+                            text = "Story Preview",
                             modifier = Modifier.align(androidx.compose.ui.Alignment.Center),
                         )
                     }
@@ -55,7 +55,7 @@ fun PreviewRoute(
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         InfoPill(text = preview.musicLabel)
                         InfoPill(text = preview.coverCaption)
-                        InfoPill(text = "支持：换音乐 / 字幕 / 封面")
+                        InfoPill(text = "支持：生成漫画 / 生成视频 / 改写分镜")
                     }
                 }
             }

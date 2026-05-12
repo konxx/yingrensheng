@@ -37,7 +37,6 @@ class MaterialRepository:
                 size_bytes=size_bytes,
                 sha256=sha256,
                 status="LOCAL_SAVED",
-                vod_vid=None,
                 created_at=now,
                 updated_at=now,
             )
@@ -50,7 +49,6 @@ class MaterialRepository:
                 upload.material_id = material_id
                 upload.status = "LOCAL_SAVED"
                 upload.local_path = local_path
-                upload.vod_file_name = file_name
 
             project = session.execute(
                 select(ProjectModel).where(ProjectModel.project_id == project_id),
@@ -75,27 +73,6 @@ class MaterialRepository:
             ).scalars().all()
             return [self._to_schema(item) for item in models]
 
-    def update_vod_status(self, material_id: str, status: str, insight: str, vod_vid: str | None = None) -> None:
-        with SessionLocal() as session:
-            model = session.execute(
-                select(MaterialModel).where(MaterialModel.material_id == material_id),
-            ).scalar_one_or_none()
-            if model is None:
-                return
-            model.status = status
-            model.insight = insight
-            model.vod_vid = vod_vid
-            model.updated_at = now_iso()
-
-            upload = session.execute(
-                select(UploadModel).where(UploadModel.material_id == material_id),
-            ).scalar_one_or_none()
-            if upload is not None:
-                upload.status = status
-                upload.vod_vid = vod_vid
-
-            session.commit()
-
     @staticmethod
     def _to_schema(model: MaterialModel) -> MaterialResponse:
         return MaterialResponse(
@@ -109,8 +86,6 @@ class MaterialRepository:
             mimeType=model.mime_type,
             sizeBytes=model.size_bytes,
             status=model.status,
-            vodVid=model.vod_vid,
             createdAt=model.created_at,
             updatedAt=model.updated_at,
         )
-

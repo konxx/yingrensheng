@@ -22,7 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 class NetworkCreationRepository(
     private val apiClient: SimpleApiClient,
@@ -39,7 +39,7 @@ class NetworkCreationRepository(
             val responseType = object : TypeToken<NetworkApiResponse<List<ScenePayload>>>() {}.type
             val envelope: NetworkApiResponse<List<ScenePayload>> = apiClient.get("/scenes", responseType)
             val payload: List<ScenePayload> = envelope.requireData()
-            payload.map { item ->
+            val remoteScenes = payload.map { item ->
                 SceneTemplate(
                     sceneId = item.sceneId,
                     title = item.title,
@@ -48,6 +48,7 @@ class NetworkCreationRepository(
                     estimatedTimeLabel = item.estimatedTimeLabel,
                 )
             }
+            if (remoteScenes.any { it.sceneId.startsWith("scene_character") }) remoteScenes else fallback.scenes()
         }.getOrElse { fallback.scenes() }
     }
 
@@ -55,65 +56,94 @@ class NetworkCreationRepository(
 
     override fun interviewPrompts(): List<InterviewPrompt> {
         return listOf(
-            InterviewPrompt("prompt_1", "这支片子最想送给谁？", "一句话写清对象，AI 会更容易拿捏语气。"),
-            InterviewPrompt("prompt_2", "你最想保留的一个瞬间是什么？", "比如一句话、一个地方、一次拥抱。"),
-            InterviewPrompt("prompt_3", "希望成片更温暖、热烈还是庄重？", "这会同时影响文案、配乐和节奏。"),
+            when (sessionState.value.mode) {
+                CreationMode.CHARACTER_TIME_TRAVEL -> InterviewPrompt("prompt_1", "希望主角更像原著人物，还是一个新角色？", "例如唐僧转世、贾府贵公子、女儿国新来客。")
+                CreationMode.OUTLINE_STORY -> InterviewPrompt("prompt_1", "故事最核心的冲突是什么？", "一句话说清主角想要什么、阻力来自哪里。")
+                CreationMode.NOVEL_TO_MEDIA -> InterviewPrompt("prompt_1", "这次优先做漫画还是短视频？", "如果已在上一页选择模板，也可以补充希望的节奏。")
+                else -> InterviewPrompt("prompt_1", "这次最想表达什么？", "一句话写清创作目标。")
+            },
+            when (sessionState.value.mode) {
+                CreationMode.CHARACTER_TIME_TRAVEL -> InterviewPrompt("prompt_2", "要保留用户照片里的哪些气质？", "比如清冷、少年感、温和、英气、贵气。")
+                CreationMode.OUTLINE_STORY -> InterviewPrompt("prompt_2", "想要哪种时代或题材质感？", "例如唐宋、明清、民国、武侠、宫廷、修仙。")
+                CreationMode.NOVEL_TO_MEDIA -> InterviewPrompt("prompt_2", "最想突出哪一个剧情节点？", "适合作为漫画第 1 格或短视频前 5 秒钩子。")
+                else -> InterviewPrompt("prompt_2", "希望 AI 优先抓住哪段内容？", "例如人物、关系、转折或情绪。")
+            },
+            InterviewPrompt("prompt_3", "希望整体更古典、热血、悬疑还是温柔？", "这会影响文风、画风、旁白和字幕。"),
         )
     }
 
     override fun styles(): List<NarrativeStyle> {
         return listOf(
-            NarrativeStyle("style_warm", "温暖胶片", "更柔和的旁白与偏金色的记忆感"),
-            NarrativeStyle("style_youth", "青春节奏", "切点更快，更适合旅行与毕业"),
-            NarrativeStyle("style_memory", "沉静回忆", "适合人生回忆与家庭纪念"),
+            NarrativeStyle("style_classic", "古典章回", "适合名著融合，语言更有章回小说和古风叙事感"),
+            NarrativeStyle("style_cinematic", "影视短剧", "镜头感更强，适合生成短视频旁白和分镜"),
+            NarrativeStyle("style_comic", "连环漫画", "画面切分更清楚，适合 6-12 格漫画脚本"),
+            NarrativeStyle("style_webnovel", "网文爽感", "节奏更快，冲突更直接，适合原创故事和连载开篇"),
         )
     }
 
     override fun exportPlans(): List<ExportPlan> = fallback.exportPlans()
 
     override fun selectMode(mode: CreationMode) {
-        sessionState.value = sessionState.value.copy(mode = mode)
+        sessionState.value = CreationSession(mode = mode)
         fallback.selectMode(mode)
     }
 
     override fun selectScene(scene: SceneTemplate) {
-        sessionState.value = sessionState.value.copy(selectedScene = scene)
+        sessionState.value = sessionState.value.copy(
+            selectedScene = scene,
+            materials = emptyList(),
+            themeLine = "",
+            interviewAnswers = emptyMap(),
+            selectedStyle = null,
+            storyDraft = null,
+            storyboard = emptyList(),
+            previewAsset = null,
+            renderTask = null,
+            selectedExportPlan = null,
+        )
         fallback.selectScene(scene)
         sessionState.value = sessionState.value.copy(currentProjectId = fallback.observeSession().value.currentProjectId)
     }
 
-    override fun importMaterials() = fallback.importMaterials()
+    override fun importMaterials() {
+        fallback.importMaterials()
+        sessionState.value = fallback.observeSession().value
+    }
 
     override fun replaceMaterials(materials: List<com.yingrensheng.core.model.material.MaterialItem>) {
+        fallback.replaceMaterials(materials)
         sessionState.value = sessionState.value.copy(materials = materials)
     }
 
     override fun updateThemeLine(themeLine: String) {
+        fallback.updateThemeLine(themeLine)
         sessionState.value = sessionState.value.copy(themeLine = themeLine)
     }
 
     override fun answerPrompt(promptId: String, answer: String) {
+        fallback.answerPrompt(promptId, answer)
         sessionState.value = sessionState.value.copy(
             interviewAnswers = sessionState.value.interviewAnswers + (promptId to answer),
         )
     }
 
     override fun selectStyle(style: NarrativeStyle) {
+        fallback.selectStyle(style)
         sessionState.value = sessionState.value.copy(selectedStyle = style)
     }
 
-    override fun generateStoryDraft() {
-        val projectId = ProjectRepositoryProvider.current.latestProject()?.projectId
+    override suspend fun generateStoryDraft() {
+        val projectId = sessionState.value.currentProjectId ?: ProjectRepositoryProvider.current.latestProject()?.projectId
         if (projectId == null) return
 
-        runBlocking(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             runCatching {
                 val taskType = object : TypeToken<NetworkApiResponse<TaskPayload>>() {}.type
                 val taskEnvelope: NetworkApiResponse<TaskPayload> = apiClient.post(
                     path = "/projects/$projectId/story-draft/generate",
                     body = mapOf(
-                        "styleId" to (sessionState.value.selectedStyle?.styleId ?: "style_warm"),
-                        "themeLine" to sessionState.value.themeLine.ifBlank { "想把那天的晚风和笑声留下来" },
+                        "styleId" to (sessionState.value.selectedStyle?.styleId ?: "style_cinematic"),
+                        "themeLine" to sessionState.value.themeLine.ifBlank { "一个现代人进入古典小说世界，改写自己和主角的命运。" },
                     ),
                     type = taskType,
                 )
@@ -141,22 +171,16 @@ class NetworkCreationRepository(
                     ),
                 )
             }.onFailure {
-                sessionState.value = sessionState.value.copy(
-                    renderTask = RenderTask(
-                        taskId = "task_story_error",
-                        stage = "故事草稿生成失败",
-                        progress = 0,
-                        estimatedRemainingSeconds = 0,
-                    ),
-                )
+                fallback.generateStoryDraft()
+                sessionState.value = fallback.observeSession().value
             }
         }
     }
 
-    override fun buildStoryboard() {
-        val projectId = ProjectRepositoryProvider.current.latestProject()?.projectId
+    override suspend fun buildStoryboard() {
+        val projectId = sessionState.value.currentProjectId ?: ProjectRepositoryProvider.current.latestProject()?.projectId
         if (projectId == null) return
-        runBlocking(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             runCatching {
                 val taskType = object : TypeToken<NetworkApiResponse<TaskPayload>>() {}.type
                 val taskEnvelope: NetworkApiResponse<TaskPayload> = apiClient.post(
@@ -191,22 +215,16 @@ class NetworkCreationRepository(
                     ),
                 )
             }.onFailure {
-                sessionState.value = sessionState.value.copy(
-                    renderTask = RenderTask(
-                        taskId = "task_storyboard_error",
-                        stage = "故事板生成失败",
-                        progress = 0,
-                        estimatedRemainingSeconds = 0,
-                    ),
-                )
+                fallback.buildStoryboard()
+                sessionState.value = fallback.observeSession().value
             }
         }
     }
 
-    override fun createPreview() {
-        val projectId = ProjectRepositoryProvider.current.latestProject()?.projectId
+    override suspend fun createPreview() {
+        val projectId = sessionState.value.currentProjectId ?: ProjectRepositoryProvider.current.latestProject()?.projectId
         if (projectId == null) return
-        runBlocking(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             runCatching {
                 val taskType = object : TypeToken<NetworkApiResponse<TaskPayload>>() {}.type
                 val taskEnvelope: NetworkApiResponse<TaskPayload> = apiClient.post(
@@ -238,14 +256,8 @@ class NetworkCreationRepository(
                     ),
                 )
             }.onFailure {
-                sessionState.value = sessionState.value.copy(
-                    renderTask = RenderTask(
-                        taskId = "task_preview_error",
-                        stage = "预览生成失败",
-                        progress = 0,
-                        estimatedRemainingSeconds = 0,
-                    ),
-                )
+                fallback.createPreview()
+                sessionState.value = fallback.observeSession().value
             }
         }
     }
@@ -254,10 +266,10 @@ class NetworkCreationRepository(
         sessionState.value = sessionState.value.copy(selectedExportPlan = plan)
     }
 
-    override fun startExport() {
+    override suspend fun startExport() {
         val selectedPlan = sessionState.value.selectedExportPlan ?: return
-        val projectId = ProjectRepositoryProvider.current.latestProject()?.projectId ?: return
-        runBlocking(Dispatchers.IO) {
+        val projectId = sessionState.value.currentProjectId ?: ProjectRepositoryProvider.current.latestProject()?.projectId ?: return
+        withContext(Dispatchers.IO) {
             runCatching {
                 val taskType = object : TypeToken<NetworkApiResponse<TaskPayload>>() {}.type
                 val taskEnvelope: NetworkApiResponse<TaskPayload> = apiClient.post(

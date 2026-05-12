@@ -4,6 +4,13 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val yrsBackendOrigin = providers.gradleProperty("yrsBackendOrigin")
+    .orElse("http://127.0.0.1:3000")
+    .get()
+    .trimEnd('/')
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+
 android {
     namespace = "com.yingrensheng.app"
     compileSdk = 35
@@ -14,6 +21,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "YRS_BACKEND_ORIGIN", "\"$yrsBackendOrigin\"")
     }
 
     buildFeatures {
@@ -53,6 +61,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:model"))
     implementation(project(":core:navigation"))
+    implementation(project(":core:network"))
     implementation(project(":core:ui"))
     implementation(project(":data:agency"))
     implementation(project(":data:creation"))

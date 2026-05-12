@@ -15,8 +15,10 @@ import com.yingrensheng.core.model.material.MaterialType
 import com.yingrensheng.core.model.project.CreationMode
 import com.yingrensheng.data.project.repository.ProjectRepository
 import com.yingrensheng.data.project.repository.ProjectRepositoryProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 interface CreationRepository {
     fun observeSession(): StateFlow<CreationSession>
@@ -47,15 +49,15 @@ interface CreationRepository {
 
     fun selectStyle(style: NarrativeStyle)
 
-    fun generateStoryDraft()
+    suspend fun generateStoryDraft()
 
-    fun buildStoryboard()
+    suspend fun buildStoryboard()
 
-    fun createPreview()
+    suspend fun createPreview()
 
     fun selectExportPlan(plan: ExportPlan)
 
-    fun startExport()
+    suspend fun startExport()
 }
 
 object CreationRepositoryProvider {
@@ -71,56 +73,87 @@ class FakeCreationRepository(
     override fun observeSession(): StateFlow<CreationSession> = sessionState.asStateFlow()
 
     override fun creationModes(): List<Pair<CreationMode, String>> = listOf(
-        CreationMode.QUICK_FILM to "快速成片",
-        CreationMode.STORY_FILM to "故事成片",
+        CreationMode.CHARACTER_TIME_TRAVEL to "角色穿越",
+        CreationMode.OUTLINE_STORY to "大纲成文",
+        CreationMode.NOVEL_TO_MEDIA to "小说成片",
     )
 
     override fun scenes(): List<SceneTemplate> = listOf(
-        SceneTemplate("scene_travel", "旅行纪念", "把风景、人物和那一天的心情剪成短片", "30-60 秒", "约 2 分钟"),
-        SceneTemplate("scene_memory", "人生回忆", "适合老照片、录音和家庭故事整理", "60-180 秒", "约 4 分钟"),
-        SceneTemplate("scene_festival", "节庆祝福", "生日、毕业、纪念日都能快速出片", "30-45 秒", "约 2 分钟"),
-        SceneTemplate("scene_hero", "主角故事", "更强调人物表达与情绪推进", "45-90 秒", "约 3 分钟"),
+        SceneTemplate("scene_character_xiyou", "西游记角色穿越", "上传自拍，把用户架空成唐僧、女儿国行者或取经路上的新角色", "角色海报 + 短篇故事", "约 2 分钟"),
+        SceneTemplate("scene_character_honglou", "红楼梦角色穿越", "把人物放进贾府关系网，生成贾宝玉式公子或新入园人物", "角色设定 + 剧情片段", "约 2 分钟"),
+        SceneTemplate("scene_outline_history", "融合历史小说", "把用户大纲融入名著、朝代、宫廷、武侠或架空历史", "短篇小说 + 分镜", "约 3 分钟"),
+        SceneTemplate("scene_outline_original", "原创故事小说", "从一句灵感扩写成专属世界观、人物关系和章节梗概", "短篇小说 + 连载大纲", "约 3 分钟"),
+        SceneTemplate("scene_media_comic", "生成连环漫画", "解析小说人物、场景和情节节点，输出 6-12 格漫画分镜", "连环漫画脚本", "约 4 分钟"),
+        SceneTemplate("scene_media_short_video", "生成短视频", "把小说拆成镜头、旁白、字幕和封面建议，适合推文视频", "30-90 秒短视频", "约 4 分钟"),
     )
 
-    override fun sampleMaterials(): List<MaterialItem> = listOf(
-        MaterialItem("material_001", "洱海骑行", MaterialType.VIDEO, "00:18", "已识别到风景高光片段"),
-        MaterialItem("material_002", "晚霞合照", MaterialType.PHOTO, "-", "已匹配暖色氛围封面"),
-        MaterialItem("material_003", "一句旁白", MaterialType.AUDIO, "00:12", "已完成转写"),
-        MaterialItem("material_004", "一句主题", MaterialType.NOTE, "-", "适合用作结尾字幕"),
-    )
+    override fun sampleMaterials(): List<MaterialItem> {
+        return when (sessionState.value.mode) {
+            CreationMode.CHARACTER_TIME_TRAVEL -> listOf(
+                MaterialItem("material_role_photo", "用户自拍参考", MaterialType.PHOTO, "-", "将用于角色脸型、气质和服饰方向参考"),
+                MaterialItem("material_role_note", "角色愿望", MaterialType.NOTE, "-", "已记录用户想进入的文学世界和人物身份"),
+            )
+            CreationMode.OUTLINE_STORY -> listOf(
+                MaterialItem("material_outline_note", "故事大纲", MaterialType.NOTE, "-", "将扩写为世界观、人物小传和短篇正文"),
+            )
+            CreationMode.NOVEL_TO_MEDIA -> listOf(
+                MaterialItem("material_novel_text", "小说正文", MaterialType.NOTE, "-", "将拆解为人物、场景、镜头与旁白"),
+            )
+            else -> listOf(
+                MaterialItem("material_seed_note", "创作说明", MaterialType.NOTE, "-", "已记录本次 AI 创作输入"),
+            )
+        }
+    }
 
     override fun interviewPrompts(): List<InterviewPrompt> = listOf(
-        InterviewPrompt("prompt_1", "这支片子最想送给谁？", "一句话写清对象，AI 会更容易拿捏语气。"),
-        InterviewPrompt("prompt_2", "你最想保留的一个瞬间是什么？", "比如一句话、一个地方、一次拥抱。"),
-        InterviewPrompt("prompt_3", "希望成片更温暖、热烈还是庄重？", "这会同时影响文案、配乐和节奏。"),
+        when (sessionState.value.mode) {
+            CreationMode.CHARACTER_TIME_TRAVEL -> InterviewPrompt("prompt_1", "希望主角更像原著人物，还是一个新角色？", "例如唐僧转世、贾府贵公子、女儿国新来客。")
+            CreationMode.OUTLINE_STORY -> InterviewPrompt("prompt_1", "故事最核心的冲突是什么？", "一句话说清主角想要什么、阻力来自哪里。")
+            CreationMode.NOVEL_TO_MEDIA -> InterviewPrompt("prompt_1", "这次优先做漫画还是短视频？", "如果已在上一页选择模板，也可以补充希望的节奏。")
+            else -> InterviewPrompt("prompt_1", "这次最想表达什么？", "一句话写清创作目标。")
+        },
+        when (sessionState.value.mode) {
+            CreationMode.CHARACTER_TIME_TRAVEL -> InterviewPrompt("prompt_2", "要保留用户照片里的哪些气质？", "比如清冷、少年感、温和、英气、贵气。")
+            CreationMode.OUTLINE_STORY -> InterviewPrompt("prompt_2", "想要哪种时代或题材质感？", "例如唐宋、明清、民国、武侠、宫廷、修仙。")
+            CreationMode.NOVEL_TO_MEDIA -> InterviewPrompt("prompt_2", "最想突出哪一个剧情节点？", "适合作为漫画第 1 格或短视频前 5 秒钩子。")
+            else -> InterviewPrompt("prompt_2", "希望 AI 优先抓住哪段内容？", "例如人物、关系、转折或情绪。")
+        },
+        InterviewPrompt("prompt_3", "希望整体更古典、热血、悬疑还是温柔？", "这会影响文风、画风、旁白和字幕。"),
     )
 
     override fun styles(): List<NarrativeStyle> = listOf(
-        NarrativeStyle("style_warm", "温暖胶片", "更柔和的旁白与偏金色的记忆感"),
-        NarrativeStyle("style_youth", "青春节奏", "切点更快，更适合旅行与毕业"),
-        NarrativeStyle("style_memory", "沉静回忆", "适合人生回忆与家庭纪念"),
+        NarrativeStyle("style_classic", "古典章回", "适合名著融合，语言更有章回小说和古风叙事感"),
+        NarrativeStyle("style_cinematic", "影视短剧", "镜头感更强，适合生成短视频旁白和分镜"),
+        NarrativeStyle("style_comic", "连环漫画", "画面切分更清楚，适合 6-12 格漫画脚本"),
+        NarrativeStyle("style_webnovel", "网文爽感", "节奏更快，冲突更直接，适合原创故事和连载开篇"),
     )
 
     override fun exportPlans(): List<ExportPlan> = listOf(
-        ExportPlan("plan_single", "1080P 单次导出", "¥39.90", listOf("无水印", "可下载", "保留封面")),
-        ExportPlan("plan_member", "会员解锁", "¥168/年", listOf("全年导出优惠", "高级配音", "优先渲染")),
+        ExportPlan("plan_single", "单次高清导出", "¥39.90", listOf("无水印", "可下载", "保留封面与字幕")),
+        ExportPlan("plan_member", "创作会员", "¥168/年", listOf("更多生成额度", "角色一致性优先", "高清导出优惠")),
     )
 
     override fun selectMode(mode: CreationMode) {
-        sessionState.value = sessionState.value.copy(mode = mode)
+        sessionState.value = CreationSession(mode = mode)
     }
 
     override fun selectScene(scene: SceneTemplate) {
         val project = projectRepository.createDraft(
-            title = when (scene.title) {
-                "人生回忆" -> "未命名人生回忆"
-                else -> "未命名${scene.title}"
-            },
+            title = "未命名${scene.title}",
             sceneType = scene.title,
-            mode = sessionState.value.mode ?: CreationMode.QUICK_FILM,
+            mode = sessionState.value.mode ?: CreationMode.CHARACTER_TIME_TRAVEL,
         )
         sessionState.value = sessionState.value.copy(
             selectedScene = scene,
+            materials = emptyList(),
+            themeLine = "",
+            interviewAnswers = emptyMap(),
+            selectedStyle = null,
+            storyDraft = null,
+            storyboard = emptyList(),
+            previewAsset = null,
+            renderTask = null,
+            selectedExportPlan = null,
             currentProjectId = project.projectId,
         )
     }
@@ -147,51 +180,60 @@ class FakeCreationRepository(
         sessionState.value = sessionState.value.copy(selectedStyle = style)
     }
 
-    override fun generateStoryDraft() {
+    override suspend fun generateStoryDraft() {
+        withContext(Dispatchers.Default) {
         val sceneTitle = sessionState.value.selectedScene?.title ?: "人生片段"
-        val mood = sessionState.value.selectedStyle?.title ?: "温暖胶片"
+        val style = sessionState.value.selectedStyle?.title ?: "影视短剧"
+        val input = sessionState.value.themeLine.ifBlank { "一个现代人进入古典小说世界，改写自己和主角的命运。" }
         sessionState.value = sessionState.value.copy(
             storyDraft = StoryDraft(
-                title = "${sceneTitle} | 第一版故事",
-                opening = "从一张张零散素材里，先把最想留住的那一刻轻轻托出来。",
-                body = "AI 已按“相遇 - 高光 - 留白”的结构整理素材，并把情绪收进 $mood 的旁白语气里。",
-                closing = "最后留下的不只是风景，而是你那天真正想讲给别人听的话。",
+                title = "${sceneTitle} | 第一版创作草稿",
+                opening = "角色被放入 $sceneTitle 的世界后，先用一个清晰的身份钩子建立观众兴趣。",
+                body = "AI 已根据“$input”整理出人物设定、核心冲突和三段式剧情，并按 $style 的方向预留漫画与短视频改编空间。",
+                closing = "接下来会继续拆成镜头、旁白、字幕和画面提示，方便生成连环漫画或短视频首版。",
             ),
             renderTask = RenderTask(
                 taskId = IdGenerator.newId("task"),
-                stage = "故事生成完成，正在编排分镜",
+                stage = "创作草稿已生成，正在准备分镜",
                 progress = 72,
                 estimatedRemainingSeconds = 45,
             ),
         )
+        }
     }
 
-    override fun buildStoryboard() {
+    override suspend fun buildStoryboard() {
+        withContext(Dispatchers.Default) {
+        val sceneTitle = sessionState.value.selectedScene?.title ?: "小说成片"
         sessionState.value = sessionState.value.copy(
             storyboard = listOf(
-                StoryboardSection("board_1", "开场", "先落一帧最有情绪的封面镜头", "字幕：把风吹过的那一刻留下来", "00:10"),
-                StoryboardSection("board_2", "高光", "把骑行、笑声和晚霞放在同一段情绪峰值里", "字幕：那些一路向前的画面都在发光", "00:22"),
-                StoryboardSection("board_3", "收束", "用一句旁白和一张安静合照收尾", "字幕：原来最想记住的是一起在场", "00:16"),
+                StoryboardSection("board_1", "身份亮相", "用角色定妆照或小说开篇场景建立 $sceneTitle 的世界入口", "字幕：他一睁眼，已站在命运改写的开端", "00:08"),
+                StoryboardSection("board_2", "冲突推进", "安排主角与原著人物或原创对手发生第一次正面碰撞", "字幕：旧故事没有等他，他却先改了局", "00:18"),
+                StoryboardSection("board_3", "悬念收束", "用一个反转、承诺或未解谜题收尾，适合继续生成下一集", "字幕：下一回，真正的考验才开始", "00:10"),
             ),
         )
+        }
     }
 
-    override fun createPreview() {
+    override suspend fun createPreview() {
+        withContext(Dispatchers.Default) {
         sessionState.value = sessionState.value.copy(
             previewAsset = PreviewAsset(
                 title = sessionState.value.storyDraft?.title ?: "首版成片",
-                subtitleSummary = "已生成三段式故事板，支持换音乐、换封面、重写某段旁白。",
-                musicLabel = "配乐：温暖胶片",
-                coverCaption = "封面建议：晚霞合照 + 手写标题",
+                subtitleSummary = "已生成三段式故事板，支持继续生成角色海报、漫画格或短视频预览。",
+                musicLabel = "配乐：古风悬念",
+                coverCaption = "封面建议：角色定妆照 + 世界观标题",
             ),
         )
+        }
     }
 
     override fun selectExportPlan(plan: ExportPlan) {
         sessionState.value = sessionState.value.copy(selectedExportPlan = plan)
     }
 
-    override fun startExport() {
+    override suspend fun startExport() {
+        withContext(Dispatchers.Default) {
         sessionState.value = sessionState.value.copy(
             renderTask = RenderTask(
                 taskId = IdGenerator.newId("export"),
@@ -200,5 +242,6 @@ class FakeCreationRepository(
                 estimatedRemainingSeconds = 28,
             ),
         )
+        }
     }
 }

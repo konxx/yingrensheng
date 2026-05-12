@@ -34,15 +34,12 @@ fun HomeRoute(
 
     YrsScaffold(
         title = "欢迎回来，${session.user?.nickname ?: "映人生用户"}",
-        subtitle = "先给你一个能快速开拍的入口，再把最近项目稳稳接住。",
+        subtitle = "把自拍、大纲或小说变成角色故事、连环漫画和短视频。",
     ) {
         YrsSurfaceCard {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text(
-                    text = "今天适合开始一支什么片子？",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                Text(text = "旅行纪念、人生回忆、节庆祝福都可以从一键开始进入。")
+                Text(text = "今天想进入哪本故事？", style = MaterialTheme.typography.titleLarge)
+                Text(text = "上传一张照片可以做角色穿越，输入一段大纲可以生成小说，粘贴小说可以继续拆成漫画或短视频。")
                 YrsPrimaryButton(
                     text = "开始创作",
                     modifier = Modifier.fillMaxWidth(),
@@ -66,9 +63,9 @@ fun HomeRoute(
             }
         }
 
-        SectionHeader(title = "推荐场景", actionLabel = "更懂情绪")
+        SectionHeader(title = "热门创作", actionLabel = "AI 导演")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            listOf("旅行纪念", "人生回忆", "节庆祝福", "主角故事").forEach { label ->
+            listOf("西游记穿越", "红楼梦角色", "大纲写小说", "小说转漫画", "小说转短视频").forEach { label ->
                 InfoPill(text = label)
             }
         }

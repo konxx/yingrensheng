@@ -14,7 +14,5 @@ class MaterialResponse(BaseModel):
     mime_type: str = Field(alias="mimeType")
     size_bytes: int = Field(alias="sizeBytes")
     status: str
-    vod_vid: str | None = Field(alias="vodVid", default=None)
     created_at: str = Field(alias="createdAt")
     updated_at: str = Field(alias="updatedAt")
-

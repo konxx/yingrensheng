@@ -42,3 +42,5 @@ server/server_test_upload.jpg
 # OS / editor
 .DS_Store
 Thumbs.db
+
+.mindfs/

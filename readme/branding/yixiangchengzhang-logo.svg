@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="420" viewBox="0 0 1400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="yxcz-gradient" x1="40" y1="32" x2="220" y2="228" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D79241"/>
+      <stop offset="0.52" stop-color="#B65A43"/>
+      <stop offset="1" stop-color="#1F2B24"/>
+    </linearGradient>
+    <linearGradient id="yxcz-ribbon" x1="67" y1="60" x2="168" y2="170" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF8EF"/>
+      <stop offset="1" stop-color="#FCE5D1"/>
+    </linearGradient>
+    <filter id="yxcz-shadow" x="0" y="0" width="260" height="260" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="10"/>
+      <feGaussianBlur stdDeviation="10"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.12 0 0 0 0 0.15 0 0 0 0 0.14 0 0 0 0.18 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#yxcz-shadow)">
+    <circle cx="130" cy="130" r="96" fill="url(#yxcz-gradient)"/>
+    <circle cx="130" cy="130" r="95" stroke="rgba(255,255,255,0.18)"/>
+  </g>
+
+  <path
+    d="M79 74C92 60 113 56 131 62C151 69 163 85 165 103C167 124 154 139 135 150C120 158 111 169 112 182C113 196 125 205 142 208C154 211 168 210 182 206"
+    stroke="url(#yxcz-ribbon)"
+    stroke-width="18"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <circle cx="95" cy="85" r="4.8" fill="#C8742A"/>
+  <circle cx="112" cy="77" r="4.2" fill="#E9C38B"/>
+  <circle cx="129" cy="74" r="3.8" fill="#FFF4E4"/>
+
+  <path
+    d="M62 159C86 141 108 134 130 141C152 134 174 141 198 159V183C176 170 153 165 130 173C107 165 84 170 62 183V159Z"
+    fill="#FFF7EC"/>
+  <path
+    d="M130 141V173"
+    stroke="#D6A56E"
+    stroke-width="4"
+    stroke-linecap="round"/>
+  <path
+    d="M75 162C92 153 108 150 123 152"
+    stroke="#D79C61"
+    stroke-width="3.5"
+    stroke-linecap="round"/>
+  <path
+    d="M184 162C167 153 151 150 136 152"
+    stroke="#D79C61"
+    stroke-width="3.5"
+    stroke-linecap="round"/>
+
+  <path
+    d="M171 87L175.6 98.4L187 103L175.6 107.6L171 119L166.4 107.6L155 103L166.4 98.4L171 87Z"
+    fill="#FFE2A7"/>
+
+  <text
+    x="292"
+    y="158"
+    fill="#1F2B24"
+    font-size="76"
+    font-weight="700"
+    font-family="Noto Sans SC, Microsoft YaHei, PingFang SC, Hiragino Sans GB, Source Han Sans SC, sans-serif"
+    letter-spacing="2">
+    忆像成章
+  </text>
+
+  <text
+    x="294"
+    y="212"
+    fill="#7A675C"
+    font-size="24"
+    font-weight="600"
+    font-family="Noto Sans SC, Microsoft YaHei, PingFang SC, Hiragino Sans GB, Source Han Sans SC, sans-serif"
+    letter-spacing="1.5">
+    多模态人生故事影像创作平台
+  </text>
+
+  <line x1="294" y1="244" x2="1010" y2="244" stroke="#D8C2A8" stroke-width="2"/>
+
+  <text
+    x="294"
+    y="295"
+    fill="#6D7C8B"
+    font-size="22"
+    font-weight="500"
+    font-family="Inter, Segoe UI, Microsoft YaHei, sans-serif"
+    letter-spacing="4">
+    MEMORY TO MOTION · STORY TO SCREEN
+  </text>
+
+  <text
+    x="294"
+    y="340"
+    fill="#9A7B66"
+    font-size="18"
+    font-weight="500"
+    font-family="Noto Sans SC, Microsoft YaHei, PingFang SC, sans-serif"
+    letter-spacing="1">
+    以照片、视频、录音与文字，生成具有叙事结构与情绪表达的纪念影像
+  </text>
+</svg>

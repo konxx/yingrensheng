@@ -7,11 +7,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
+import kotlinx.coroutines.launch
 
 @Composable
 fun PaymentRoute(
@@ -19,6 +24,8 @@ fun PaymentRoute(
 ) {
     val creationRepository = CreationRepositoryProvider.current
     val session by creationRepository.observeSession().collectAsState()
+    val scope = rememberCoroutineScope()
+    var exporting by remember { mutableStateOf(false) }
     val selectedPlan = session.selectedExportPlan
 
     YrsScaffold(
@@ -37,10 +44,19 @@ fun PaymentRoute(
             }
         }
         YrsPrimaryButton(
-            text = "确认支付",
+            text = if (exporting) "正在创建导出任务" else "确认支付",
             onClick = {
-                creationRepository.startExport()
-                onContinue()
+                if (!exporting) {
+                    scope.launch {
+                        exporting = true
+                        try {
+                            creationRepository.startExport()
+                            onContinue()
+                        } finally {
+                            exporting = false
+                        }
+                    }
+                }
             },
         )
     }

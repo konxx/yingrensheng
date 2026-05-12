@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
+import com.yingrensheng.core.network.YrsApiConfig
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 
 @Composable
@@ -32,9 +33,9 @@ fun BackendCheckRoute(
                 )
                 Text(
                     text = when (backendReady) {
-                        null -> "正在尝试连接模拟器访问宿主机地址 `10.0.2.2:3000`。"
-                        true -> "已确认 `10.0.2.2:3000` 可用，可以继续进入账号体系。"
-                        false -> "请先启动本地后端 `python run_server.py`，然后再重试。"
+                        null -> "正在尝试连接 `${YrsApiConfig.BackendOrigin}`。USB 真机请先执行 `adb reverse tcp:3000 tcp:3000`。"
+                        true -> "已确认 `${YrsApiConfig.BackendOrigin}` 可用，可以继续进入账号体系。"
+                        false -> "请先启动本地后端 `python run_server.py`，USB 真机再执行 `adb reverse tcp:3000 tcp:3000` 后重试。"
                     },
                 )
             }

@@ -25,7 +25,6 @@ import com.yingrensheng.core.navigation.route.AppRoute
 import com.yingrensheng.core.navigation.route.TopLevelDestination
 import com.yingrensheng.core.navigation.route.topLevelDestinations
 import com.yingrensheng.core.common.result.AppResult
-import com.yingrensheng.core.model.project.CreationMode
 import com.yingrensheng.core.model.work.Work
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
 import com.yingrensheng.data.user.repository.UserRepositoryProvider
@@ -65,7 +64,6 @@ fun YingRenShengApp() {
     val userRepository = UserRepositoryProvider.current
     val creationRepository = CreationRepositoryProvider.current
     val session by userRepository.session().collectAsState()
-    val creationSession by creationRepository.observeSession().collectAsState()
     val loginPreferenceStore = remember(context) { LoginPreferenceStore(context) }
     var backendReady by remember { mutableStateOf<Boolean?>(null) }
     var backendProbeVersion by remember { mutableStateOf(0) }
@@ -226,13 +224,7 @@ fun YingRenShengApp() {
 
             AppRoute.MaterialReview -> MaterialReviewRoute(
                 onContinue = {
-                    navigate(
-                        if (creationSession.mode == CreationMode.QUICK_FILM) {
-                            AppRoute.StyleSelect
-                        } else {
-                            AppRoute.Interview
-                        },
-                    )
+                    navigate(AppRoute.Interview)
                 },
             )
 

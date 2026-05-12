@@ -17,8 +17,8 @@ fun StyleSelectRoute(
 ) {
     val creationRepository = CreationRepositoryProvider.current
     YrsScaffold(
-        title = "不要只选模板，先选情绪",
-        subtitle = "情绪会同时影响旁白口吻、音乐节奏、封面和字幕样式。",
+        title = "选择叙事风格",
+        subtitle = "风格会同时影响小说文风、分镜密度、旁白口吻、画面提示和封面方向。",
     ) {
         creationRepository.styles().forEach { style ->
             YrsSurfaceCard {

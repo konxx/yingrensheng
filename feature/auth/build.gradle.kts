@@ -43,6 +43,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation(project(":core:designsystem"))
+    implementation(project(":core:network"))
     implementation(project(":core:navigation"))
     implementation(project(":core:ui"))
     implementation(project(":data:user"))

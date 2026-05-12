@@ -63,8 +63,6 @@ class UploadModel(Base):
     deduplicated: Mapped[bool] = mapped_column(Boolean, default=False)
     material_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     local_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    vod_vid: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    vod_file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class MaterialModel(Base):
@@ -83,7 +81,6 @@ class MaterialModel(Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     sha256: Mapped[str] = mapped_column(String(128), index=True)
     status: Mapped[str] = mapped_column(String(32), index=True)
-    vod_vid: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[str] = mapped_column(String(64))
     updated_at: Mapped[str] = mapped_column(String(64))
 

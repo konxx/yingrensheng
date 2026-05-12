@@ -9,6 +9,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.yingrensheng.core.model.material.MaterialItem
 import com.yingrensheng.core.model.material.MaterialType
+import com.yingrensheng.core.network.YrsApiConfig
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
@@ -29,7 +30,7 @@ class MaterialUploadHelper(
     ): List<MaterialItem> {
         return withContext(Dispatchers.IO) {
             val boundary = "Boundary-${UUID.randomUUID()}"
-            val url = URL("http://10.0.2.2:3000/api/v1/uploads/files")
+            val url = URL(YrsApiConfig.api("/uploads/files"))
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 15_000

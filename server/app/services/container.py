@@ -31,10 +31,9 @@ from app.schemas.task import TaskStatusResponse
 from app.schemas.upload import UploadInitiateRequest, UploadInitiateResponse, UploadStatusResponse
 from app.schemas.user import MemberMeResponse, UpdateUserProfileRequest, UserProfile
 from app.schemas.work import WorkResponse
-from app.services.ark_client import ArkTextClient
+from app.services.dashscope_text_client import DashScopeTextClient
 from app.services.material_service import MaterialService
 from app.services.render_service import RenderService
-from app.services.vod_client import VodStorageClient
 
 
 @dataclass
@@ -119,10 +118,12 @@ class SceneService:
 
     def scene_title_map(self) -> dict[str, str]:
         return {
-            "scene_travel": "旅行纪念",
-            "scene_memory": "人生回忆",
-            "scene_festival": "节庆祝福",
-            "scene_hero": "主角故事",
+            "scene_character_xiyou": "西游记角色穿越",
+            "scene_character_honglou": "红楼梦角色穿越",
+            "scene_outline_history": "融合历史小说",
+            "scene_outline_original": "原创故事小说",
+            "scene_media_comic": "生成连环漫画",
+            "scene_media_short_video": "生成短视频",
         }
 
 
@@ -210,33 +211,62 @@ class CreationService:
     task_repository: TaskRepository
     work_repository: WorkRepository
     order_repository: OrderRepository
-    text_client: ArkTextClient
+    text_client: DashScopeTextClient
     render_service: RenderService
 
-    def get_interview_prompts(self, scene_id: str | None = None) -> list[InterviewPromptResponse]:
-        _ = scene_id
-        return [
-            InterviewPromptResponse(promptId="prompt_1", title="这支片子最想送给谁？", helper="一句话写清对象，AI 会更容易拿捏语气。"),
-            InterviewPromptResponse(promptId="prompt_2", title="你最想保留的一个瞬间是什么？", helper="比如一句话、一个地方、一次拥抱。"),
-            InterviewPromptResponse(promptId="prompt_3", title="希望整体更温暖、热烈还是庄重？", helper="这会同时影响文案、配乐和节奏。"),
-        ]
-
-    def generate_story_draft(self, project_id: str, style_id: str, theme_line: str) -> TaskStatusResponse:
-        project = self.project_repository.get(project_id)
-        if project is None:
-            raise ValueError("PROJECT_NOT_FOUND")
+    def _create_story_draft(
+        self,
+        project: ProjectDetail,
+        style_id: str,
+        theme_line: str,
+    ) -> StoryDraftResponse:
         draft = self.text_client.generate_story_draft(
             scene_title=project.scene_title,
             project_title=project.title,
             theme_line=theme_line,
             style_id=style_id,
         )
-        self.creation_repository.upsert_story_draft(
-            project_id=project_id,
+        return self.creation_repository.upsert_story_draft(
+            project_id=project.project_id,
             title=draft["title"],
             opening=draft["opening"],
             body=draft["body"],
             closing=draft["closing"],
+        )
+
+    def get_interview_prompts(self, scene_id: str | None = None) -> list[InterviewPromptResponse]:
+        if scene_id and scene_id.startswith("scene_character"):
+            return [
+                InterviewPromptResponse(promptId="prompt_1", title="希望主角更像原著人物，还是一个新角色？", helper="例如唐僧转世、贾府贵公子、女儿国新来客。"),
+                InterviewPromptResponse(promptId="prompt_2", title="要保留用户照片里的哪些气质？", helper="比如清冷、少年感、温和、英气、贵气。"),
+                InterviewPromptResponse(promptId="prompt_3", title="希望整体更古典、热血、悬疑还是温柔？", helper="这会影响文风、画风、旁白和字幕。"),
+            ]
+        if scene_id and scene_id.startswith("scene_outline"):
+            return [
+                InterviewPromptResponse(promptId="prompt_1", title="故事最核心的冲突是什么？", helper="一句话说清主角想要什么、阻力来自哪里。"),
+                InterviewPromptResponse(promptId="prompt_2", title="想要哪种时代或题材质感？", helper="例如唐宋、明清、民国、武侠、宫廷、修仙。"),
+                InterviewPromptResponse(promptId="prompt_3", title="希望整体更古典、热血、悬疑还是温柔？", helper="这会影响文风、画风、旁白和字幕。"),
+            ]
+        if scene_id and scene_id.startswith("scene_media"):
+            return [
+                InterviewPromptResponse(promptId="prompt_1", title="这次优先做漫画还是短视频？", helper="如果已在上一页选择模板，也可以补充希望的节奏。"),
+                InterviewPromptResponse(promptId="prompt_2", title="最想突出哪一个剧情节点？", helper="适合作为漫画第 1 格或短视频前 5 秒钩子。"),
+                InterviewPromptResponse(promptId="prompt_3", title="希望整体更古典、热血、悬疑还是温柔？", helper="这会影响文风、画风、旁白和字幕。"),
+            ]
+        return [
+            InterviewPromptResponse(promptId="prompt_1", title="这次最想表达什么？", helper="一句话写清创作目标。"),
+            InterviewPromptResponse(promptId="prompt_2", title="希望 AI 优先抓住哪段内容？", helper="例如人物、关系、转折或情绪。"),
+            InterviewPromptResponse(promptId="prompt_3", title="希望整体更古典、热血、悬疑还是温柔？", helper="这会影响文风、画风、旁白和字幕。"),
+        ]
+
+    def generate_story_draft(self, project_id: str, style_id: str, theme_line: str) -> TaskStatusResponse:
+        project = self.project_repository.get(project_id)
+        if project is None:
+            raise ValueError("PROJECT_NOT_FOUND")
+        self._create_story_draft(
+            project=project,
+            style_id=style_id,
+            theme_line=theme_line,
         )
         return self.task_repository.upsert(
             task_id=f"task_story_{uuid.uuid4().hex[:8]}",
@@ -254,9 +284,15 @@ class CreationService:
 
     def generate_storyboard(self, project_id: str) -> TaskStatusResponse:
         project = self.project_repository.get(project_id)
+        if project is None:
+            raise ValueError("PROJECT_NOT_FOUND")
         draft = self.creation_repository.get_story_draft(project_id)
-        if project is None or draft is None:
-            raise ValueError("PROJECT_OR_DRAFT_NOT_FOUND")
+        if draft is None:
+            draft = self._create_story_draft(
+                project=project,
+                style_id="style_cinematic",
+                theme_line="一个现代人进入古典小说世界，改写自己和主角的命运。",
+            )
         sections = self.text_client.generate_storyboard(
             scene_title=project.scene_title,
             story_draft={
@@ -372,9 +408,8 @@ class ServiceContainer:
     material_repository: MaterialRepository = field(default_factory=MaterialRepository)
     work_repository: WorkRepository = field(default_factory=WorkRepository)
     order_repository: OrderRepository = field(default_factory=OrderRepository)
-    text_client: ArkTextClient = field(default_factory=ArkTextClient)
+    text_client: DashScopeTextClient = field(default_factory=DashScopeTextClient)
     render_service: RenderService = field(default_factory=RenderService)
-    vod_client: VodStorageClient = field(default_factory=VodStorageClient)
     scene_service: SceneService = field(init=False)
     member_service: MemberService = field(init=False)
     auth_service: AuthService = field(init=False)
@@ -400,7 +435,6 @@ class ServiceContainer:
         self.material_service = MaterialService(
             material_repository=self.material_repository,
             upload_repository=UploadRepository(),
-            vod_client=self.vod_client,
         )
         self.task_service = TaskService(repository=self.task_repository)
         self.creation_service = CreationService(

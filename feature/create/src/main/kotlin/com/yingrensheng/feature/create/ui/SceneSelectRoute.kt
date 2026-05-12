@@ -24,16 +24,28 @@ fun SceneSelectRoute(
 ) {
     val creationRepository = CreationRepositoryProvider.current
     val session by creationRepository.observeSession().collectAsState()
-    val isQuickFilm = session.mode == CreationMode.QUICK_FILM
     YrsScaffold(
-        title = if (isQuickFilm) "快速成片先挑一个场景" else "故事成片先定一个场景",
-        subtitle = if (isQuickFilm) {
-            "这一条会优先追求尽快出首版，上传素材后直接进入情绪与预览生成。"
-        } else {
-            "这一条会保留完整访谈与故事整理流程，更适合做情绪线更完整的作品。"
+        title = when (session.mode) {
+            CreationMode.CHARACTER_TIME_TRAVEL -> "选择角色世界"
+            CreationMode.OUTLINE_STORY -> "选择故事生成方向"
+            CreationMode.NOVEL_TO_MEDIA -> "选择输出形式"
+            else -> "选择创作模板"
+        },
+        subtitle = when (session.mode) {
+            CreationMode.CHARACTER_TIME_TRAVEL -> "先决定用户照片要进入哪个文学或历史架空世界。"
+            CreationMode.OUTLINE_STORY -> "可以把大纲融合进经典世界观，也可以生成完全原创的故事小说。"
+            CreationMode.NOVEL_TO_MEDIA -> "小说会先拆成角色、场景和剧情节点，再生成漫画或短视频脚本。"
+            else -> "选择一个模板继续。"
         },
     ) {
-        creationRepository.scenes().forEach { scene ->
+        creationRepository.scenes().filter { scene ->
+            when (session.mode) {
+                CreationMode.CHARACTER_TIME_TRAVEL -> scene.sceneId.startsWith("scene_character")
+                CreationMode.OUTLINE_STORY -> scene.sceneId.startsWith("scene_outline")
+                CreationMode.NOVEL_TO_MEDIA -> scene.sceneId.startsWith("scene_media")
+                else -> true
+            }
+        }.forEach { scene ->
             YrsSurfaceCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(text = scene.title, style = MaterialTheme.typography.titleLarge)
@@ -43,7 +55,7 @@ fun SceneSelectRoute(
                         InfoPill(text = scene.estimatedTimeLabel)
                     }
                     YrsPrimaryButton(
-                        text = if (isQuickFilm) "用 ${scene.title} 快速开拍" else "用 ${scene.title} 进入导演模式",
+                        text = "使用${scene.title}",
                         onClick = {
                             creationRepository.selectScene(scene)
                             onSceneSelected()

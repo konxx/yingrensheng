@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mark-gradient" x1="88" y1="72" x2="414" y2="426" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D79241"/>
+      <stop offset="0.52" stop-color="#B65A43"/>
+      <stop offset="1" stop-color="#1F2B24"/>
+    </linearGradient>
+    <linearGradient id="mark-ribbon" x1="158" y1="140" x2="320" y2="290" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF8EF"/>
+      <stop offset="1" stop-color="#FCE5D1"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="52" y="52" width="408" height="408" rx="120" fill="url(#mark-gradient)"/>
+
+  <path
+    d="M171 156C192 132 226 125 256 135C288 146 307 170 311 199C315 235 294 259 262 277C238 291 223 309 225 330C227 353 245 369 274 375C293 379 315 378 337 371"
+    stroke="url(#mark-ribbon)"
+    stroke-width="34"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <circle cx="196" cy="173" r="10" fill="#C8742A"/>
+  <circle cx="226" cy="159" r="9" fill="#E9C38B"/>
+  <circle cx="258" cy="152" r="8" fill="#FFF4E4"/>
+
+  <path
+    d="M130 323C168 294 203 283 256 295C309 283 344 294 382 323V362C345 340 302 329 256 345C210 329 167 340 130 362V323Z"
+    fill="#FFF7EC"/>
+  <path
+    d="M256 294V345"
+    stroke="#D6A56E"
+    stroke-width="9"
+    stroke-linecap="round"/>
+  <path
+    d="M152 329C181 314 212 307 242 311"
+    stroke="#D79C61"
+    stroke-width="7"
+    stroke-linecap="round"/>
+  <path
+    d="M360 329C331 314 300 307 270 311"
+    stroke="#D79C61"
+    stroke-width="7"
+    stroke-linecap="round"/>
+
+  <path
+    d="M328 181L338 205L362 215L338 225L328 249L318 225L294 215L318 205L328 181Z"
+    fill="#FFE2A7"/>
+</svg>

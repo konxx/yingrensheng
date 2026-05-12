@@ -65,6 +65,29 @@ APP_PORT=3000
 SQLITE_PATH=./yingrensheng.db
 ```
 
+## 外接 AI 接口
+
+当前生成链路使用阿里云百炼 DashScope Python SDK。暂时不配置 key 时，服务端会自动返回本地演示结果，保证 App 创作流程能先跑通。
+
+```env
+DASHSCOPE_API_KEY=你的百炼APIKey
+DASHSCOPE_BASE_HTTP_API_URL=https://dashscope.aliyuncs.com/api/v1
+
+AI_TEXT_MODEL=qwen3.6-plus
+AI_IMAGE_MODEL=qwen-image-2.0-pro
+AI_VIDEO_MODEL=wan2.7-i2v
+AI_TTS_MODEL=qwen-tts-realtime
+```
+
+如需为不同能力使用不同 key，也可以分别配置：
+
+```env
+AI_TEXT_API_KEY=文本模型Key
+AI_IMAGE_API_KEY=图片模型Key
+AI_VIDEO_API_KEY=视频模型Key
+AI_TTS_API_KEY=TTS模型Key
+```
+
 ## 健康检查
 
 ```text

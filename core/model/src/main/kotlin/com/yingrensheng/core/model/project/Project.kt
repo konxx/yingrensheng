@@ -3,6 +3,9 @@ package com.yingrensheng.core.model.project
 import java.time.Instant
 
 enum class CreationMode {
+    CHARACTER_TIME_TRAVEL,
+    OUTLINE_STORY,
+    NOVEL_TO_MEDIA,
     QUICK_FILM,
     STORY_FILM,
 }
@@ -26,4 +29,3 @@ data class Project(
     val moodLabel: String,
     val updatedAt: Instant,
 )
-
