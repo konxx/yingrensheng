@@ -1,6 +1,11 @@
+import base64
 from dataclasses import dataclass, field
 import json
+import mimetypes
+from pathlib import Path
 import uuid
+
+from PIL import Image
 
 from app.core.settings import settings
 from app.repositories.project_repository import ProjectRepository
@@ -39,6 +44,7 @@ from app.services.render_service import RenderService
 @dataclass
 class AuthService:
     repository: UserRepository
+    token_user_map: dict[str, str] = field(default_factory=dict)
 
     def send_sms(self, username: str, purpose: str) -> None:
         _ = (username, purpose)
@@ -48,9 +54,12 @@ class AuthService:
         profile = self.repository.verify_user(username=username, password=password or "123456")
         if profile is None:
             raise ValueError("INVALID_CREDENTIALS")
+        token = f"token_dev_{profile.user_id}_{uuid.uuid4().hex[:8]}"
+        refresh_token = f"refresh_dev_{profile.user_id}_{uuid.uuid4().hex[:8]}"
+        self.token_user_map[token] = profile.user_id
         return LoginResponseData(
-            accessToken="token_dev_001",
-            refreshToken="refresh_dev_001",
+            accessToken=token,
+            refreshToken=refresh_token,
             expiresInSeconds=7200,
             user=profile,
         )
@@ -65,17 +74,30 @@ class AuthService:
             password=payload.password,
             email=payload.email,
         )
+        token = f"token_dev_{profile.user_id}_{uuid.uuid4().hex[:8]}"
+        refresh_token = f"refresh_dev_{profile.user_id}_{uuid.uuid4().hex[:8]}"
+        self.token_user_map[token] = profile.user_id
         return LoginResponseData(
-            accessToken="token_dev_register",
-            refreshToken="refresh_dev_register",
+            accessToken=token,
+            refreshToken=refresh_token,
             expiresInSeconds=7200,
             user=profile,
         )
+
+    def get_user_by_token(self, token: str | None) -> UserProfile | None:
+        if not token:
+            return None
+        normalized_token = token.removeprefix("Bearer ").strip()
+        user_id = self.token_user_map.get(normalized_token)
+        if user_id is None:
+            return None
+        return self.repository.get_by_user_id(user_id)
 
 
 @dataclass
 class UserService:
     repository: UserRepository
+    auth_service: AuthService | None = None
 
     def get_current_user(self) -> UserProfile:
         profile = self.repository.verify_user(username="demo", password="123456")
@@ -89,12 +111,27 @@ class UserService:
             avatarUrl="",
         )
 
-    def get_member_info(self) -> MemberMeResponse:
+    def get_member_info(self, token: str | None = None) -> MemberMeResponse:
+        profile = self.auth_service.get_user_by_token(token) if self.auth_service else None
+        if profile is not None and profile.role == "admin":
+            return MemberMeResponse(
+                levelName="Admin",
+                subtitle="系统管理员账号已开放 Lite / Pro / Max 全部权益，不受生成额度、导出次数与并发限制。",
+                remainingExportCount=999999,
+                activePlanPriceLabel="系统管理员 · 全部权益",
+                benefits=[
+                    "无限制使用 Lite / Pro / Max 全部会员权益",
+                    "不受导出次数、生成额度、并发与排队限制约束",
+                    "优先使用所有已接入与待接入的 AI 模型能力",
+                    "可访问运维后台并管理用户级别",
+                ],
+            )
         return MemberMeResponse(
             levelName="Lite",
             subtitle="当前开发版默认账号为 Lite 会员，后续会随订阅开通升级到 Pro / Max。",
             remainingExportCount=3,
             activePlanPriceLabel="连续包月 ¥49",
+            benefits=["1080P 标准导出", "基础故事草稿与预览能力", "适合小型项目与轻量创作"],
         )
 
     def update_profile(self, payload: UpdateUserProfileRequest) -> UserProfile:
@@ -165,9 +202,19 @@ class UploadService:
 @dataclass
 class TaskService:
     repository: TaskRepository
+    creation_service: "CreationService | None" = None
 
     def get_task(self, task_id: str) -> TaskStatusResponse | None:
-        return self.repository.get(task_id)
+        task = self.repository.get(task_id)
+        if task is None:
+            return None
+        if (
+            self.creation_service is not None
+            and task.status == "RUNNING"
+            and task.current_stage == "DASHSCOPE_VIDEO_RUNNING"
+        ):
+            return self.creation_service.refresh_preview_task(task)
+        return task
 
 
 @dataclass
@@ -176,6 +223,9 @@ class WorkService:
 
     def list_works(self) -> list[WorkResponse]:
         return self.repository.list()
+
+    def delete_work(self, work_id: str) -> bool:
+        return self.repository.delete(work_id)
 
 
 @dataclass
@@ -213,6 +263,8 @@ class CreationService:
     order_repository: OrderRepository
     text_client: DashScopeTextClient
     render_service: RenderService
+    auth_service: AuthService | None = None
+    material_service: MaterialService | None = None
 
     def _create_story_draft(
         self,
@@ -286,13 +338,7 @@ class CreationService:
         project = self.project_repository.get(project_id)
         if project is None:
             raise ValueError("PROJECT_NOT_FOUND")
-        draft = self.creation_repository.get_story_draft(project_id)
-        if draft is None:
-            draft = self._create_story_draft(
-                project=project,
-                style_id="style_cinematic",
-                theme_line="一个现代人进入古典小说世界，改写自己和主角的命运。",
-            )
+        draft = self._ensure_story_draft(project=project)
         sections = self.text_client.generate_storyboard(
             scene_title=project.scene_title,
             story_draft={
@@ -319,62 +365,202 @@ class CreationService:
 
     def generate_preview(self, project_id: str) -> TaskStatusResponse:
         project = self.project_repository.get(project_id)
-        draft = self.creation_repository.get_story_draft(project_id)
+        if project is None:
+            raise ValueError("PROJECT_NOT_FOUND")
+        draft = self._ensure_story_draft(project=project)
         sections = self.creation_repository.get_storyboard(project_id)
-        if project is None or draft is None or not sections:
-            raise ValueError("PREVIEW_PREREQUISITES_MISSING")
+        if not sections:
+            sections = self._create_storyboard(project=project, draft=draft)
         try:
-            video_url, cover_url = self.render_service.create_preview_video(
-                project_id=project_id,
-                title=draft.title,
+            image_inputs = self._project_image_inputs(project_id=project_id)
+            image_result = self.text_client.provider.generate_image(
+                prompt=self._preview_image_prompt(project=project, draft=draft, sections=sections),
+                image_inputs=image_inputs,
+                size="1280*720",
             )
-            preview = self.creation_repository.upsert_preview(
-                project_id=project_id,
-                title=draft.title,
-                subtitle_summary="已根据故事草稿与三段式故事板生成开发版预览。",
-                music_label="配乐：开发版默认配乐",
-                cover_caption="封面建议：系统生成",
-                video_url=video_url,
+            if image_result.get("status") != "succeeded" and image_inputs:
+                image_result = self.text_client.provider.generate_image(
+                    prompt=self._preview_image_prompt(project=project, draft=draft, sections=sections),
+                    image_inputs=[],
+                    size="1280*720",
+                )
+            if image_result.get("status") != "succeeded" or not image_result.get("image_urls"):
+                return self.task_repository.upsert(
+                    task_id=f"task_preview_{uuid.uuid4().hex[:8]}",
+                    project_id=project_id,
+                    task_type="PREVIEW",
+                    status="FAILED",
+                    progress=0,
+                    current_stage="DASHSCOPE_IMAGE_FAILED",
+                    estimated_remaining_seconds=0,
+                    error_json=json.dumps(image_result, ensure_ascii=False),
+                )
+
+            cover_url = str(image_result["image_urls"][0])
+            video_result = self.text_client.provider.generate_video(
+                prompt=self._preview_video_prompt(project=project, draft=draft, sections=sections),
+                first_frame_url=cover_url,
+                duration=10,
+                resolution="720P",
+            )
+            if video_result.get("status") != "submitted" or not video_result.get("task_id"):
+                return self.task_repository.upsert(
+                    task_id=f"task_preview_{uuid.uuid4().hex[:8]}",
+                    project_id=project_id,
+                    task_type="PREVIEW",
+                    status="FAILED",
+                    progress=0,
+                    current_stage="DASHSCOPE_VIDEO_SUBMIT_FAILED",
+                    estimated_remaining_seconds=0,
+                    error_json=json.dumps(video_result, ensure_ascii=False),
+                )
+
+            preview_metadata = self._preview_metadata(
+                project=project,
+                draft=draft,
                 cover_url=cover_url,
+                video_url="",
             )
             return self.task_repository.upsert(
                 task_id=f"task_preview_{uuid.uuid4().hex[:8]}",
                 project_id=project_id,
                 task_type="PREVIEW",
-                status="SUCCEEDED",
-                progress=100,
-                current_stage="RENDERING_PREVIEW",
-                estimated_remaining_seconds=0,
-                result_json=json.dumps({"videoUrl": preview.video_url}, ensure_ascii=False),
+                status="RUNNING",
+                progress=35,
+                current_stage="DASHSCOPE_VIDEO_RUNNING",
+                estimated_remaining_seconds=60,
+                result_json=json.dumps(
+                    {
+                        **preview_metadata,
+                        "provider": "dashscope",
+                        "imageModel": image_result.get("model"),
+                        "videoModel": video_result.get("model"),
+                        "dashscopeVideoTaskId": video_result["task_id"],
+                    },
+                    ensure_ascii=False,
+                ),
             )
-        except FileNotFoundError as exc:
+        except Exception as exc:
             return self.task_repository.upsert(
                 task_id=f"task_preview_{uuid.uuid4().hex[:8]}",
                 project_id=project_id,
                 task_type="PREVIEW",
                 status="FAILED",
                 progress=0,
-                current_stage="RENDERING_PREVIEW",
+                current_stage="DASHSCOPE_PREVIEW_FAILED",
                 estimated_remaining_seconds=0,
                 error_json=json.dumps({"message": str(exc)}, ensure_ascii=False),
             )
 
+    def refresh_preview_task(self, task: TaskStatusResponse) -> TaskStatusResponse:
+        if not task.result:
+            return task
+
+        dashscope_task_id = task.result.get("dashscopeVideoTaskId")
+        project_id = str(task.result.get("projectId") or task.task_id)
+        if not dashscope_task_id:
+            return task
+
+        video_result = self.text_client.provider.fetch_video(str(dashscope_task_id))
+        task_status = video_result.get("task_status")
+        if task_status in {"PENDING", "RUNNING"}:
+            return self.task_repository.upsert(
+                task_id=task.task_id,
+                project_id=project_id,
+                task_type="PREVIEW",
+                status="RUNNING",
+                progress=55 if task_status == "PENDING" else 82,
+                current_stage="DASHSCOPE_VIDEO_RUNNING",
+                estimated_remaining_seconds=30,
+                result_json=json.dumps(
+                    {**task.result, "dashscopeStatus": task_status},
+                    ensure_ascii=False,
+                ),
+            )
+
+        if task_status == "SUCCEEDED" and video_result.get("video_url"):
+            result = {
+                **task.result,
+                "dashscopeStatus": task_status,
+                "videoUrl": str(video_result["video_url"]),
+            }
+            preview = self.creation_repository.upsert_preview(
+                project_id=project_id,
+                title=str(result.get("title", "首版预览")),
+                subtitle_summary=str(result.get("subtitleSummary", "已生成 DashScope 视频预览。")),
+                music_label=str(result.get("musicLabel", "模型：DashScope 图生视频")),
+                cover_caption=str(result.get("coverCaption", "封面：DashScope 首帧图")),
+                video_url=str(video_result["video_url"]),
+                cover_url=str(result.get("coverUrl", "")),
+            )
+            project = self.project_repository.get(project_id)
+            if project is not None:
+                self.work_repository.create_or_update(
+                    project_id=project.project_id,
+                    title=project.title,
+                    scene_label=project.scene_title,
+                    duration_label="00:10",
+                    status_label="预览已生成",
+                    cover_url=preview.cover_url,
+                    video_url=preview.video_url,
+                )
+            return self.task_repository.upsert(
+                task_id=task.task_id,
+                project_id=project_id,
+                task_type="PREVIEW",
+                status="SUCCEEDED",
+                progress=100,
+                current_stage="DASHSCOPE_VIDEO_SUCCEEDED",
+                estimated_remaining_seconds=0,
+                result_json=json.dumps(result, ensure_ascii=False),
+            )
+
+        return self.task_repository.upsert(
+            task_id=task.task_id,
+            project_id=project_id,
+            task_type="PREVIEW",
+            status="FAILED",
+            progress=0,
+            current_stage="DASHSCOPE_VIDEO_FAILED",
+            estimated_remaining_seconds=0,
+            result_json=json.dumps(task.result, ensure_ascii=False),
+            error_json=json.dumps(video_result, ensure_ascii=False),
+        )
+
     def get_preview(self, project_id: str) -> PreviewAssetResponse | None:
         return self.creation_repository.get_preview(project_id)
 
-    def export_project(self, project_id: str, payload: ExportGenerateRequest) -> TaskStatusResponse:
+    def export_project(
+        self,
+        project_id: str,
+        payload: ExportGenerateRequest,
+        token: str | None = None,
+    ) -> TaskStatusResponse:
         project = self.project_repository.get(project_id)
+        if project is None:
+            raise ValueError("PROJECT_NOT_FOUND")
+        profile = self.auth_service.get_user_by_token(token) if self.auth_service else None
+        is_admin = profile is not None and profile.role == "admin"
+        if payload.export_plan_id == "plan_admin" and not is_admin:
+            raise ValueError("ADMIN_EXPORT_REQUIRES_ADMIN")
         preview = self.creation_repository.get_preview(project_id)
-        if project is None or preview is None:
+        if preview is None:
             raise ValueError("EXPORT_PREREQUISITES_MISSING")
 
+        amount_label = "系统管理员权益 · 已豁免" if is_admin else (
+            "¥39.90" if payload.export_plan_id == "plan_single" else "¥168.00"
+        )
+        export_spec = f"{payload.resolution} {'无水印' if payload.remove_watermark else '带水印'}"
+        if is_admin:
+            export_spec = f"{export_spec} · Admin 不消耗额度"
+
         self.order_repository.create(
-            user_id="user_001",
+            user_id=profile.user_id if profile is not None else "user_001",
             project_id=project_id,
             title=f"{project.title} 导出",
-            amount_label="¥39.90" if payload.export_plan_id == "plan_single" else "¥168.00",
-            export_spec=f"{payload.resolution} {'无水印' if payload.remove_watermark else '带水印'}",
-            status_label="已支付",
+            amount_label=amount_label,
+            export_spec=export_spec,
+            status_label="已豁免" if is_admin else "已支付",
         )
         self.work_repository.create_or_update(
             project_id=project_id,
@@ -395,6 +581,102 @@ class CreationService:
             estimated_remaining_seconds=0,
             result_json=json.dumps({"projectId": project_id, "videoUrl": preview.video_url}, ensure_ascii=False),
         )
+
+    def _ensure_story_draft(self, project: ProjectDetail) -> StoryDraftResponse:
+        draft = self.creation_repository.get_story_draft(project.project_id)
+        if draft is not None:
+            return draft
+        return self._create_story_draft(
+            project=project,
+            style_id="style_cinematic",
+            theme_line="一个现代人进入古典小说世界，改写自己和主角的命运。",
+        )
+
+    def _create_storyboard(
+        self,
+        project: ProjectDetail,
+        draft: StoryDraftResponse,
+    ) -> list[StoryboardSectionResponse]:
+        sections = self.text_client.generate_storyboard(
+            scene_title=project.scene_title,
+            story_draft={
+                "title": draft.title,
+                "opening": draft.opening,
+                "body": draft.body,
+                "closing": draft.closing,
+            },
+        )
+        return self.creation_repository.replace_storyboard(project_id=project.project_id, sections=sections)
+
+    def _project_image_inputs(self, project_id: str) -> list[str]:
+        if self.material_service is None:
+            return []
+        image_inputs: list[str] = []
+        for material in self.material_service.list_materials(project_id):
+            if material.material_type == "PHOTO" and material.local_path:
+                try:
+                    image_inputs.append(_local_image_data_url(material.local_path, material.mime_type))
+                except OSError:
+                    continue
+        return image_inputs[:3]
+
+    def _preview_metadata(
+        self,
+        project: ProjectDetail,
+        draft: StoryDraftResponse,
+        cover_url: str,
+        video_url: str,
+    ) -> dict[str, str]:
+        return {
+            "projectId": project.project_id,
+            "title": draft.title,
+            "subtitleSummary": "已根据故事草稿、分镜和用户素材生成 DashScope 首版视频预览。",
+            "musicLabel": "模型：DashScope 图生视频",
+            "coverCaption": "封面：DashScope 生成首帧图",
+            "coverUrl": cover_url,
+            "videoUrl": video_url,
+        }
+
+    def _preview_image_prompt(
+        self,
+        project: ProjectDetail,
+        draft: StoryDraftResponse,
+        sections: list[StoryboardSectionResponse],
+    ) -> str:
+        section_line = "；".join(section.summary for section in sections[:3])
+        return (
+            "为历史架空/名著融合短视频生成一张16:9首帧封面图。"
+            "要求：电影感构图，人物清晰，古典服饰与场景可信，适合中文短视频封面，"
+            "不要出现乱码文字，不要低清水印。"
+            f"项目：{project.title}。场景：{project.scene_title}。"
+            f"故事标题：{draft.title}。开场：{draft.opening}。分镜：{section_line}"
+        )
+
+    def _preview_video_prompt(
+        self,
+        project: ProjectDetail,
+        draft: StoryDraftResponse,
+        sections: list[StoryboardSectionResponse],
+    ) -> str:
+        section_line = "；".join(
+            f"{section.title}：{section.summary}，字幕重点：{section.subtitle_line}"
+            for section in sections[:3]
+        )
+        return (
+            "基于首帧图生成10秒历史架空短视频预览。镜头缓慢推进，人物神态自然，"
+            "服饰和背景保持古典质感，画面稳定，电影感光影，不要出现错乱文字。"
+            f"项目：{project.title}。场景：{project.scene_title}。"
+            f"故事：{draft.opening} {draft.body[:500]}。分镜节奏：{section_line}"
+        )
+
+
+def _local_image_data_url(path: str, mime_type: str) -> str:
+    file_path = Path(path)
+    resolved_mime_type = mime_type or mimetypes.guess_type(file_path.name)[0] or "image/png"
+    with Image.open(file_path) as image:
+        image.verify()
+    encoded = base64.b64encode(file_path.read_bytes()).decode("ascii")
+    return f"data:{resolved_mime_type};base64,{encoded}"
 
 
 @dataclass
@@ -426,7 +708,7 @@ class ServiceContainer:
         self.scene_service = SceneService(repository=self.scene_repository)
         self.member_service = MemberService(repository=self.member_repository)
         self.auth_service = AuthService(repository=self.user_repository)
-        self.user_service = UserService(repository=self.user_repository)
+        self.user_service = UserService(repository=self.user_repository, auth_service=self.auth_service)
         self.project_service = ProjectService(
             repository=self.project_repository,
             scene_service=self.scene_service,
@@ -445,7 +727,10 @@ class ServiceContainer:
             order_repository=self.order_repository,
             text_client=self.text_client,
             render_service=self.render_service,
+            auth_service=self.auth_service,
         )
+        self.creation_service.material_service = self.material_service
+        self.task_service.creation_service = self.creation_service
         self.work_service = WorkService(repository=self.work_repository)
         self.order_service = OrderService(repository=self.order_repository)
 

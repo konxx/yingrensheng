@@ -133,6 +133,13 @@ class FakeCreationRepository(
         ExportPlan("plan_member", "创作会员", "¥168/年", listOf("更多生成额度", "角色一致性优先", "高清导出优惠")),
     )
 
+    fun adminExportPlan(): ExportPlan = ExportPlan(
+        planId = "plan_admin",
+        title = "系统管理员权益导出",
+        priceLabel = "已豁免",
+        benefits = listOf("无水印", "高清导出", "不消耗额度", "无需支付"),
+    )
+
     override fun selectMode(mode: CreationMode) {
         sessionState.value = CreationSession(mode = mode)
     }
@@ -185,11 +192,16 @@ class FakeCreationRepository(
         val sceneTitle = sessionState.value.selectedScene?.title ?: "人生片段"
         val style = sessionState.value.selectedStyle?.title ?: "影视短剧"
         val input = sessionState.value.themeLine.ifBlank { "一个现代人进入古典小说世界，改写自己和主角的命运。" }
+        val answers = interviewPrompts().mapNotNull { prompt ->
+            sessionState.value.interviewAnswers[prompt.promptId]
+                ?.takeIf { it.isNotBlank() }
+                ?.let { "${prompt.title}：$it" }
+        }.joinToString("；")
         sessionState.value = sessionState.value.copy(
             storyDraft = StoryDraft(
                 title = "${sceneTitle} | 第一版创作草稿",
                 opening = "角色被放入 $sceneTitle 的世界后，先用一个清晰的身份钩子建立观众兴趣。",
-                body = "AI 已根据“$input”整理出人物设定、核心冲突和三段式剧情，并按 $style 的方向预留漫画与短视频改编空间。",
+                body = "AI 已根据“$input”${if (answers.isNotBlank()) "，并结合“$answers”" else ""}整理出人物设定、核心冲突和三段式剧情，并按 $style 的方向预留漫画与短视频改编空间。",
                 closing = "接下来会继续拆成镜头、旁白、字幕和画面提示，方便生成连环漫画或短视频首版。",
             ),
             renderTask = RenderTask(

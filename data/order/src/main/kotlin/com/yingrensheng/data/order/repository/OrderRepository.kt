@@ -69,7 +69,7 @@ class NetworkOrderRepository(
         fun fallbackAware(): OrderRepository {
             val fake = FakeOrderRepository()
             return NetworkOrderRepository(
-                apiClient = SimpleApiClient(YrsApiConfig.DefaultBaseUrl),
+                apiClient = SimpleApiClient(),
                 fallback = fake,
             )
         }

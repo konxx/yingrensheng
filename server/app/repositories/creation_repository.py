@@ -1,3 +1,5 @@
+import hashlib
+
 from sqlalchemy import delete, select
 
 from app.core.time import now_iso
@@ -57,7 +59,7 @@ class CreationRepository:
             models: list[StoryboardSectionModel] = []
             for index, section in enumerate(sections):
                 model = StoryboardSectionModel(
-                    section_id=section["section_id"],
+                    section_id=self._storyboard_section_id(project_id=project_id, index=index),
                     project_id=project_id,
                     order_index=index,
                     title=section["title"],
@@ -199,6 +201,11 @@ class CreationRepository:
         )
 
     @staticmethod
+    def _storyboard_section_id(project_id: str, index: int) -> str:
+        project_hash = hashlib.sha1(project_id.encode("utf-8")).hexdigest()[:12]
+        return f"section_{project_hash}_{index + 1:03d}"
+
+    @staticmethod
     def _to_preview(model: PreviewAssetModel) -> PreviewAssetResponse:
         return PreviewAssetResponse(
             projectId=model.project_id,
@@ -210,4 +217,3 @@ class CreationRepository:
             coverUrl=model.cover_url,
             updatedAt=model.updated_at,
         )
-

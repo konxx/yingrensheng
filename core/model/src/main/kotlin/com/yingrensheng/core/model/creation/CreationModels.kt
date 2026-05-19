@@ -43,6 +43,8 @@ data class PreviewAsset(
     val subtitleSummary: String,
     val musicLabel: String,
     val coverCaption: String,
+    val coverUrl: String = "",
+    val videoUrl: String = "",
 )
 
 data class RenderTask(
@@ -73,4 +75,3 @@ data class CreationSession(
     val selectedExportPlan: ExportPlan? = null,
     val currentProjectId: String? = null,
 )
-

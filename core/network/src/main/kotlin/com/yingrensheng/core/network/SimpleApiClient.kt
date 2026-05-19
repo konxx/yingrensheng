@@ -9,7 +9,7 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 
 class SimpleApiClient(
-    private val baseUrl: String,
+    private val baseUrl: String? = null,
     private val gson: Gson = Gson(),
 ) {
     fun <T> get(path: String, type: Type): T {
@@ -30,6 +30,15 @@ class SimpleApiClient(
         )
     }
 
+    fun <T> delete(path: String, type: Type): T {
+        return request(
+            method = "DELETE",
+            path = path,
+            body = null,
+            type = type,
+        )
+    }
+
     private fun <T> request(
         method: String,
         path: String,
@@ -37,12 +46,16 @@ class SimpleApiClient(
         type: Type,
     ): T {
         val normalizedPath = if (path.startsWith("/")) path else "/$path"
-        val url = URL(baseUrl.trimEnd('/') + normalizedPath)
+        val requestBaseUrl = (baseUrl ?: YrsApiConfig.DefaultBaseUrl).trimEnd('/')
+        val url = URL(requestBaseUrl + normalizedPath)
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 5_000
-            readTimeout = 8_000
+            readTimeout = 60_000
             setRequestProperty("Accept", "application/json")
+            YrsApiConfig.authorizationHeader()?.let { token ->
+                setRequestProperty("Authorization", token)
+            }
             if (body != null) {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -78,4 +91,3 @@ class SimpleApiClient(
         }
     }
 }
-

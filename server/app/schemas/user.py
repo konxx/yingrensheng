@@ -9,6 +9,7 @@ class UserProfile(BaseModel):
     email: str
     nickname: str
     avatar_url: str = Field(alias="avatarUrl", default="")
+    role: str = "user"
 
 
 class UpdateUserProfileRequest(BaseModel):
@@ -27,3 +28,4 @@ class MemberMeResponse(BaseModel):
     subtitle: str
     remaining_export_count: int = Field(alias="remainingExportCount")
     active_plan_price_label: str = Field(alias="activePlanPriceLabel")
+    benefits: list[str] = Field(default_factory=list)

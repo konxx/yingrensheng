@@ -13,5 +13,5 @@ data class MaterialItem(
     val type: MaterialType,
     val durationLabel: String,
     val insight: String,
+    val previewUri: String? = null,
 )
-

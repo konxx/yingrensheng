@@ -32,13 +32,19 @@ class DashScopeTextClient:
             "请生成一版适合历史架空、名著融合、原创小说或小说改编的创作草稿。"
             "需要兼顾小说正文、漫画分镜和短视频脚本的后续扩展。"
         )
-        data = self.provider.chat_json(system_prompt, user_prompt, fallback=fallback)
+        try:
+            data = self.provider.chat_json(system_prompt, user_prompt, fallback=fallback)
+        except Exception:
+            data = fallback
         if not isinstance(data, dict):
             data = fallback
+        body = str(data.get("body", fallback["body"]))
+        if "AI 导演补齐设定：" in theme_line and "AI 导演补齐设定：" not in body:
+            body = f"{body}\n\n已记录的 AI 导演补齐设定：\n{_extract_director_notes(theme_line)}"
         return {
             "title": str(data.get("title", fallback["title"])),
             "opening": str(data.get("opening", fallback["opening"])),
-            "body": str(data.get("body", fallback["body"])),
+            "body": body,
             "closing": str(data.get("closing", fallback["closing"])),
         }
 
@@ -61,11 +67,17 @@ class DashScopeTextClient:
             f"结尾：{story_draft['closing']}\n"
             "请生成三段式故事板，兼容连环漫画与短视频。每段要包含画面、旁白或字幕重点。"
         )
-        data = self.provider.chat_json(system_prompt, user_prompt, fallback=fallback)
+        try:
+            data = self.provider.chat_json(system_prompt, user_prompt, fallback=fallback)
+        except Exception:
+            data = fallback
         if not isinstance(data, list):
             data = fallback
+        items = data[:3]
+        if len(items) < 3:
+            items = items + fallback[len(items):3]
         normalized = []
-        for index, item in enumerate(data[:3]):
+        for index, item in enumerate(items):
             if not isinstance(item, dict):
                 item = fallback[min(index, len(fallback) - 1)]
             normalized.append(
@@ -98,6 +110,15 @@ def _fallback_story_draft(
         "body": f"根据“{theme_line}”，系统将主角愿望、时代规则、原著人物关系和第一场冲突整理成 {style_label} 方向的创作主线。",
         "closing": "这一版会继续拆成角色定妆提示、漫画格画面和短视频镜头，等待接入真实图片/视频模型。",
     }
+
+
+def _extract_director_notes(theme_line: str) -> str:
+    marker = "AI 导演补齐设定："
+    _, _, tail = theme_line.partition(marker)
+    if not tail:
+        return ""
+    notes, _, _ = tail.partition("\n用户素材：")
+    return notes.strip()
 
 
 def _fallback_storyboard(scene_title: str, story_draft: dict[str, str]) -> list[dict[str, Any]]:

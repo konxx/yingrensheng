@@ -11,6 +11,7 @@ class MaterialResponse(BaseModel):
     duration_label: str = Field(alias="durationLabel")
     insight: str
     local_path: str = Field(alias="localPath")
+    preview_url: str = Field(alias="previewUrl", default="")
     mime_type: str = Field(alias="mimeType")
     size_bytes: int = Field(alias="sizeBytes")
     status: str

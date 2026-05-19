@@ -35,7 +35,7 @@ fun BackendCheckRoute(
                     text = when (backendReady) {
                         null -> "正在尝试连接 `${YrsApiConfig.BackendOrigin}`。USB 真机请先执行 `adb reverse tcp:3000 tcp:3000`。"
                         true -> "已确认 `${YrsApiConfig.BackendOrigin}` 可用，可以继续进入账号体系。"
-                        false -> "请先启动本地后端 `python run_server.py`，USB 真机再执行 `adb reverse tcp:3000 tcp:3000` 后重试。"
+                        false -> "当前检测地址：`${YrsApiConfig.BackendOrigin}`。模拟器请使用 `http://10.0.2.2:3000` 打包；USB 真机请执行 `adb reverse tcp:3000 tcp:3000`。"
                     },
                 )
             }

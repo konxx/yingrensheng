@@ -34,12 +34,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.yingrensheng.core.designsystem.theme.WeUiAdminPurple
 import com.yingrensheng.core.designsystem.theme.WeUiAvatar
 import com.yingrensheng.core.designsystem.theme.WeUiBackground
 import com.yingrensheng.core.designsystem.theme.WeUiBorder
 import com.yingrensheng.core.designsystem.theme.WeUiGold
 import com.yingrensheng.core.designsystem.theme.WeUiGoldBright
 import com.yingrensheng.core.designsystem.theme.WeUiLiteRed
+import com.yingrensheng.core.designsystem.theme.WeUiLiquidGold
 import com.yingrensheng.core.designsystem.theme.WeUiQr
 import com.yingrensheng.core.designsystem.theme.WeUiSurface
 import com.yingrensheng.core.designsystem.theme.WeUiTextSecondary
@@ -172,6 +174,7 @@ fun ProfileRoute(
 @Composable
 private fun MemberBadge(levelName: String) {
     val normalizedLevel = when {
+        levelName.contains("admin", ignoreCase = true) -> "Admin"
         levelName.contains("max", ignoreCase = true) -> "Max"
         levelName.contains("pro", ignoreCase = true) -> "Pro"
         else -> "Lite"
@@ -187,18 +190,29 @@ private fun MemberBadge(levelName: String) {
         label = "memberBadgeAlpha",
     )
     val accentColor = when (normalizedLevel) {
+        "Admin" -> WeUiLiquidGold
         "Max" -> WeUiGoldBright
         "Pro" -> WeUiGold
         else -> WeUiLiteRed
     }
-    val badgeAlpha = if (normalizedLevel == "Max") pulseAlpha else 1f
+    val badgeAlpha = if (normalizedLevel == "Max" || normalizedLevel == "Admin") pulseAlpha else 1f
+    val backgroundColor = if (normalizedLevel == "Admin") {
+        WeUiAdminPurple.copy(alpha = 0.94f)
+    } else {
+        accentColor.copy(alpha = 0.14f * badgeAlpha)
+    }
+    val borderColor = if (normalizedLevel == "Admin") {
+        WeUiLiquidGold.copy(alpha = badgeAlpha)
+    } else {
+        accentColor.copy(alpha = badgeAlpha)
+    }
 
     Text(
         text = normalizedLevel,
         modifier = Modifier
             .clip(RoundedCornerShape(100.dp))
-            .background(accentColor.copy(alpha = 0.14f * badgeAlpha))
-            .border(1.dp, accentColor.copy(alpha = badgeAlpha), RoundedCornerShape(100.dp))
+            .background(backgroundColor)
+            .border(1.dp, borderColor, RoundedCornerShape(100.dp))
             .padding(horizontal = 10.dp, vertical = 4.dp),
         color = accentColor,
         style = MaterialTheme.typography.labelLarge,

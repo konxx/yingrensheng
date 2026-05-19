@@ -2,6 +2,8 @@ package com.yingrensheng.feature.create.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,10 +16,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
+import com.yingrensheng.core.ui.component.InfoPill
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StoryDraftRoute(
     onContinue: () -> Unit,
@@ -57,6 +61,18 @@ fun StoryDraftRoute(
             YrsSurfaceCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(text = draft.title, style = MaterialTheme.typography.titleLarge)
+                    val directorAnswers = creationRepository.recordedDirectorAnswers()
+                    if (directorAnswers.isNotEmpty()) {
+                        Text(text = "已记录的 AI 导演设定", style = MaterialTheme.typography.titleMedium)
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            directorAnswers.forEach { answer ->
+                                InfoPill(text = answer)
+                            }
+                        }
+                    }
                     Text(text = draft.opening)
                     Text(text = draft.body)
                     Text(text = draft.closing)
@@ -67,5 +83,14 @@ fun StoryDraftRoute(
                 onClick = onContinue,
             )
         }
+    }
+}
+
+private fun com.yingrensheng.data.creation.repository.CreationRepository.recordedDirectorAnswers(): List<String> {
+    val session = observeSession().value
+    return interviewPrompts().mapNotNull { prompt ->
+        session.interviewAnswers[prompt.promptId]
+            ?.takeIf { it.isNotBlank() }
+            ?.let { "${prompt.title}：$it" }
     }
 }

@@ -3,6 +3,8 @@ package com.yingrensheng.app.ui
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -16,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,7 +30,9 @@ import com.yingrensheng.core.navigation.route.topLevelDestinations
 import com.yingrensheng.core.common.result.AppResult
 import com.yingrensheng.core.model.work.Work
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
+import com.yingrensheng.data.member.repository.MemberRepositoryProvider
 import com.yingrensheng.data.user.repository.UserRepositoryProvider
+import com.yingrensheng.data.work.repository.WorkRepositoryProvider
 import com.yingrensheng.feature.agency.ui.AgencyEntryRoute
 import com.yingrensheng.feature.auth.ui.AgreementRoute
 import com.yingrensheng.feature.auth.ui.BackendCheckRoute
@@ -149,8 +154,9 @@ fun YingRenShengApp() {
                 }
             }
         },
-    ) { _ ->
-        when (currentRoute) {
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues)) {
+            when (currentRoute) {
             AppRoute.BackendCheck -> BackendCheckRoute(
                 backendReady = backendReady,
                 onRetry = {
@@ -254,6 +260,7 @@ fun YingRenShengApp() {
 
             AppRoute.ExportPlan -> ExportPlanRoute(
                 onContinue = { navigate(AppRoute.Payment) },
+                isAdmin = MemberRepositoryProvider.current.getMemberInfo().levelName.equals("Admin", ignoreCase = true),
             )
 
             AppRoute.Payment -> PaymentRoute(
@@ -271,7 +278,23 @@ fun YingRenShengApp() {
                 },
             )
 
-            AppRoute.WorkDetail -> WorkDetailRoute(work = selectedWork)
+            AppRoute.WorkDetail -> WorkDetailRoute(
+                work = selectedWork,
+                onDeleteWork = { work ->
+                    scope.launch {
+                        val deleted = withContext(Dispatchers.IO) {
+                            WorkRepositoryProvider.current.deleteWork(work.workId)
+                        }
+                        selectedWork = null
+                        popBackTo(AppRoute.Works)
+                        Toast.makeText(
+                            context,
+                            if (deleted) "作品已删除" else "作品记录不存在",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                },
+            )
 
             AppRoute.Orders -> OrdersRoute()
 
@@ -292,6 +315,7 @@ fun YingRenShengApp() {
             AppRoute.MemberCenter -> MemberCenterRoute()
 
             AppRoute.AgencyEntry -> AgencyEntryRoute()
+            }
         }
     }
 }

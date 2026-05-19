@@ -24,6 +24,31 @@ class DashScopeAiProvider:
     def has_text_credentials(self) -> bool:
         return bool(self.api_key and self.text_model)
 
+    def status(self) -> dict[str, Any]:
+        return {
+            "provider": "dashscope",
+            "mode": "dashscope_python_sdk",
+            "openaiCompatible": False,
+            "baseHttpApiUrl": self.base_http_api_url,
+            "credentials": {
+                "dashscopeApiKeyConfigured": bool(self.api_key),
+                "imageApiKeyConfigured": bool(self.image_api_key),
+                "videoApiKeyConfigured": bool(self.video_api_key),
+                "ttsApiKeyConfigured": bool(self.tts_api_key),
+            },
+            "models": {
+                "text": self.text_model,
+                "image": self.image_model,
+                "video": self.video_model,
+                "tts": self.tts_model,
+            },
+            "sdk": {
+                "generation": _sdk_available(_dashscope_generation),
+                "multimodalConversation": _sdk_available(_dashscope_multimodal),
+                "videoSynthesis": _sdk_available(_dashscope_video),
+            },
+        }
+
     def chat_json(self, system_prompt: str, user_prompt: str, fallback: Any) -> Any:
         if not self.has_text_credentials:
             return fallback
@@ -114,11 +139,7 @@ class DashScopeAiProvider:
         if getattr(response, "status_code", None) != HTTPStatus.OK:
             return _failure_payload(response, prompt)
 
-        urls: list[str] = []
-        for item in response.output.choices[0].message.content:
-            image_url = item.get("image") if isinstance(item, dict) else getattr(item, "image", None)
-            if image_url:
-                urls.append(image_url)
+        urls = _extract_image_urls(response)
         return {
             "provider": "dashscope",
             "status": "succeeded",
@@ -152,11 +173,38 @@ class DashScopeAiProvider:
         )
         if getattr(response, "status_code", None) != HTTPStatus.OK:
             return _failure_payload(response, prompt)
+        output = getattr(response, "output", None)
         return {
             "provider": "dashscope",
             "status": "submitted",
             "model": self.video_model,
-            "task_id": response.output.task_id,
+            "task_id": _output_value(output, "task_id"),
+            "task_status": _output_value(output, "task_status"),
+        }
+
+    def fetch_video(self, task_id: str) -> dict[str, Any]:
+        if not self.video_api_key:
+            return {"provider": "dashscope", "status": "pending_credentials", "task_id": task_id}
+        try:
+            dashscope, video_cls = _dashscope_video()
+        except ImportError:
+            return {"provider": "dashscope", "status": "sdk_missing", "task_id": task_id}
+
+        dashscope.base_http_api_url = self.base_http_api_url
+        response = video_cls.fetch(task=task_id, api_key=self.video_api_key)
+        if getattr(response, "status_code", None) != HTTPStatus.OK:
+            return _failure_payload(response, task_id)
+        output = getattr(response, "output", None)
+        return {
+            "provider": "dashscope",
+            "status": "fetched",
+            "model": self.video_model,
+            "task_id": task_id,
+            "task_status": _output_value(output, "task_status"),
+            "video_url": _output_value(output, "video_url"),
+            "submit_time": _output_value(output, "submit_time"),
+            "scheduled_time": _output_value(output, "scheduled_time"),
+            "end_time": _output_value(output, "end_time"),
         }
 
     def synthesize_speech(
@@ -229,6 +277,14 @@ def _dashscope_video():
     return dashscope, VideoSynthesis
 
 
+def _sdk_available(loader: Any) -> bool:
+    try:
+        loader()
+    except ImportError:
+        return False
+    return True
+
+
 def _extract_text_content(response: Any) -> str:
     output = response.output
     choices = output.get("choices") if isinstance(output, dict) else getattr(output, "choices", None)
@@ -259,6 +315,28 @@ def _extract_multimodal_text_content(response: Any) -> str:
                 parts.append(str(item.text))
         return "\n".join(parts)
     return str(content or "")
+
+
+def _extract_image_urls(response: Any) -> list[str]:
+    output = getattr(response, "output", None)
+    choices = output.get("choices") if isinstance(output, dict) else getattr(output, "choices", None)
+    if not choices:
+        return []
+    first = choices[0]
+    message = first.get("message") if isinstance(first, dict) else getattr(first, "message", None)
+    content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
+    urls: list[str] = []
+    for item in content or []:
+        image_url = item.get("image") if isinstance(item, dict) else getattr(item, "image", None)
+        if image_url:
+            urls.append(str(image_url))
+    return urls
+
+
+def _output_value(output: Any, key: str) -> Any:
+    if isinstance(output, dict):
+        return output.get(key)
+    return getattr(output, key, None)
 
 
 def _extract_json(text: str) -> Any:

@@ -6,6 +6,7 @@ data class User(
     val email: String,
     val nickname: String,
     val avatarLabel: String,
+    val role: String = "user",
 )
 
 data class UserSession(

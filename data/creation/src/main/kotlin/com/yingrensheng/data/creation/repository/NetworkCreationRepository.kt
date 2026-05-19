@@ -19,6 +19,7 @@ import com.yingrensheng.core.network.YrsApiConfig
 import com.yingrensheng.core.network.requireData
 import com.yingrensheng.data.project.repository.ProjectRepositoryProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -138,12 +139,39 @@ class NetworkCreationRepository(
 
         withContext(Dispatchers.IO) {
             runCatching {
+                val session = sessionState.value
+                val directorAnswers = interviewPrompts().mapNotNull { prompt ->
+                    session.interviewAnswers[prompt.promptId]
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { "${prompt.title}：$it" }
+                }
+                val enrichedThemeLine = buildString {
+                    append(session.themeLine.ifBlank { "一个现代人进入古典小说世界，改写自己和主角的命运。" })
+                    if (directorAnswers.isNotEmpty()) {
+                        append("\n\nAI 导演补齐设定：\n")
+                        directorAnswers.forEach { answer ->
+                            append("- ").append(answer).append('\n')
+                        }
+                    }
+                    if (session.materials.isNotEmpty()) {
+                        append("\n用户素材：\n")
+                        session.materials.forEach { material ->
+                            append("- ")
+                                .append(material.title)
+                                .append(" / ")
+                                .append(material.type.name)
+                                .append(" / ")
+                                .append(material.insight)
+                                .append('\n')
+                        }
+                    }
+                }
                 val taskType = object : TypeToken<NetworkApiResponse<TaskPayload>>() {}.type
                 val taskEnvelope: NetworkApiResponse<TaskPayload> = apiClient.post(
                     path = "/projects/$projectId/story-draft/generate",
                     body = mapOf(
-                        "styleId" to (sessionState.value.selectedStyle?.styleId ?: "style_cinematic"),
-                        "themeLine" to sessionState.value.themeLine.ifBlank { "一个现代人进入古典小说世界，改写自己和主角的命运。" },
+                        "styleId" to (session.selectedStyle?.styleId ?: "style_cinematic"),
+                        "themeLine" to enrichedThemeLine,
                     ),
                     type = taskType,
                 )
@@ -232,7 +260,14 @@ class NetworkCreationRepository(
                     body = emptyMap<String, String>(),
                     type = taskType,
                 )
-                val task = taskEnvelope.requireData()
+                val submittedTask = taskEnvelope.requireData()
+                sessionState.value = sessionState.value.copy(
+                    renderTask = submittedTask.toRenderTask(),
+                )
+                val task = pollTaskUntilFinished(submittedTask.taskId)
+                if (task.status != "SUCCEEDED") {
+                    throw IllegalStateException(task.errorMessage() ?: "预览视频生成失败")
+                }
 
                 val previewType = object : TypeToken<NetworkApiResponse<PreviewPayload>>() {}.type
                 val previewEnvelope: NetworkApiResponse<PreviewPayload> = apiClient.get(
@@ -247,6 +282,8 @@ class NetworkCreationRepository(
                         subtitleSummary = preview.subtitleSummary,
                         musicLabel = preview.musicLabel,
                         coverCaption = preview.coverCaption,
+                        coverUrl = preview.coverUrl,
+                        videoUrl = preview.videoUrl,
                     ),
                     renderTask = RenderTask(
                         taskId = task.taskId,
@@ -256,8 +293,14 @@ class NetworkCreationRepository(
                     ),
                 )
             }.onFailure {
-                fallback.createPreview()
-                sessionState.value = fallback.observeSession().value
+                sessionState.value = sessionState.value.copy(
+                    renderTask = RenderTask(
+                        taskId = "task_preview_error",
+                        stage = "预览生成失败：${it.toPreviewErrorMessage()}",
+                        progress = 0,
+                        estimatedRemainingSeconds = 0,
+                    ),
+                )
             }
         }
     }
@@ -294,7 +337,7 @@ class NetworkCreationRepository(
                 sessionState.value = sessionState.value.copy(
                     renderTask = RenderTask(
                         taskId = "task_export_error",
-                        stage = "导出任务创建失败",
+                        stage = "导出任务创建失败：${it.toExportErrorMessage()}",
                         progress = 0,
                         estimatedRemainingSeconds = 0,
                     ),
@@ -307,10 +350,29 @@ class NetworkCreationRepository(
         fun fallbackAware(): CreationRepository {
             val fake = FakeCreationRepository(projectRepository = ProjectRepositoryProvider.current)
             return NetworkCreationRepository(
-                apiClient = SimpleApiClient(YrsApiConfig.DefaultBaseUrl),
+                apiClient = SimpleApiClient(),
                 fallback = fake,
             )
         }
+    }
+
+    private suspend fun pollTaskUntilFinished(taskId: String): TaskPayload {
+        val taskType = object : TypeToken<NetworkApiResponse<TaskPayload>>() {}.type
+        var latest: TaskPayload? = null
+        repeat(40) {
+            val envelope: NetworkApiResponse<TaskPayload> = apiClient.get(
+                "/tasks/$taskId",
+                taskType,
+            )
+            val task = envelope.requireData()
+            latest = task
+            sessionState.value = sessionState.value.copy(renderTask = task.toRenderTask())
+            if (task.status == "SUCCEEDED" || task.status == "FAILED") {
+                return task
+            }
+            delay(3_000)
+        }
+        return latest ?: throw IllegalStateException("预览任务查询超时")
     }
 }
 
@@ -328,6 +390,8 @@ private data class TaskPayload(
     val progress: Int,
     val currentStage: String,
     val estimatedRemainingSeconds: Int,
+    val result: Map<String, Any?>? = null,
+    val error: Map<String, Any?>? = null,
 )
 
 private data class StoryDraftPayload(
@@ -359,3 +423,56 @@ private data class PreviewPayload(
     val coverUrl: String,
     val updatedAt: String,
 )
+
+private fun TaskPayload.toRenderTask(): RenderTask {
+    return RenderTask(
+        taskId = taskId,
+        stage = currentStage.toTaskStageLabel(),
+        progress = progress,
+        estimatedRemainingSeconds = estimatedRemainingSeconds,
+    )
+}
+
+private fun TaskPayload.errorMessage(): String? {
+    return error?.get("message")?.toString()
+        ?: error?.get("code")?.toString()
+        ?: error?.toString()
+}
+
+private fun String.toTaskStageLabel(): String {
+    return when (this) {
+        "DASHSCOPE_VIDEO_RUNNING" -> "DashScope 正在生成视频预览"
+        "DASHSCOPE_VIDEO_SUCCEEDED" -> "DashScope 视频预览已生成"
+        "DASHSCOPE_IMAGE_FAILED" -> "DashScope 首帧图生成失败"
+        "DASHSCOPE_VIDEO_SUBMIT_FAILED" -> "DashScope 视频任务提交失败"
+        "DASHSCOPE_VIDEO_FAILED" -> "DashScope 视频生成失败"
+        "DASHSCOPE_PREVIEW_FAILED" -> "DashScope 预览生成失败"
+        else -> this
+    }
+}
+
+private fun Throwable.toPreviewErrorMessage(): String {
+    val raw = message.orEmpty()
+    return when {
+        "DASHSCOPE_IMAGE_FAILED" in raw -> "首帧图片生成失败"
+        "DASHSCOPE_VIDEO_SUBMIT_FAILED" in raw -> "视频任务提交失败"
+        "DASHSCOPE_VIDEO_FAILED" in raw -> "视频生成失败"
+        "HTTP 409" in raw -> "预览前置资源不完整"
+        raw.isNotBlank() -> raw
+        else -> "未知网络或后端异常"
+    }
+}
+
+private fun Throwable.toExportErrorMessage(): String {
+    val raw = message.orEmpty()
+    return when {
+        "ADMIN_EXPORT_REQUIRES_ADMIN" in raw -> "当前登录态不是系统管理员，请重新登录 Admin 账号"
+        "PROJECT_NOT_FOUND" in raw -> "当前创作项目没有同步到后端，请重新从场景选择创建"
+        "EXPORT_PREREQUISITES_MISSING" in raw -> "预览资源未生成成功，请先重新生成首版预览"
+        "HTTP 403" in raw -> "没有该导出权益"
+        "HTTP 404" in raw -> "后端找不到当前项目"
+        "HTTP 409" in raw -> "导出前置资源不完整"
+        raw.isNotBlank() -> raw
+        else -> "未知网络或后端异常"
+    }
+}

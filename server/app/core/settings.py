@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     db_driver: str = Field(default="mysql", alias="DB_DRIVER")
 
-    app_host: str = Field(default="127.0.0.1", alias="APP_HOST")
+    app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
     app_port: int = Field(default=3000, alias="APP_PORT")
     app_reload: bool = Field(default=True, alias="APP_RELOAD")
     ffmpeg_path: str = Field(default="ffmpeg", alias="FFMPEG_PATH")

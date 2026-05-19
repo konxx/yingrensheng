@@ -86,7 +86,7 @@ class NetworkProjectRepository(
         fun fallbackAware(): ProjectRepository {
             val fake = FakeProjectRepository()
             return NetworkProjectRepository(
-                apiClient = SimpleApiClient(YrsApiConfig.DefaultBaseUrl),
+                apiClient = SimpleApiClient(),
                 fallback = fake,
             )
         }

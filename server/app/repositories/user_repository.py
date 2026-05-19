@@ -5,6 +5,9 @@ from app.db.session import SessionLocal
 from app.schemas.user import UserProfile
 
 
+APP_ALLOWED_ROLES = {"user", "admin"}
+
+
 class UserRepository:
     def get_by_username(self, username: str) -> UserAccountModel | None:
         with SessionLocal() as session:
@@ -33,8 +36,14 @@ class UserRepository:
             stmt = select(UserAccountModel).where(
                 UserAccountModel.username == username,
                 UserAccountModel.password == password,
-                UserAccountModel.role == "user",
+                UserAccountModel.role.in_(APP_ALLOWED_ROLES),
             )
+            model = session.execute(stmt).scalar_one_or_none()
+            return self._to_profile(model) if model else None
+
+    def get_by_user_id(self, user_id: str) -> UserProfile | None:
+        with SessionLocal() as session:
+            stmt = select(UserAccountModel).where(UserAccountModel.user_id == user_id)
             model = session.execute(stmt).scalar_one_or_none()
             return self._to_profile(model) if model else None
 
@@ -82,4 +91,5 @@ class UserRepository:
             username=model.username,
             email=model.email,
             avatarUrl=model.avatar_url,
+            role=model.role,
         )

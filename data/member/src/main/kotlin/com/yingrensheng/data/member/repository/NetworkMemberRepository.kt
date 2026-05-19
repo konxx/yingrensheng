@@ -23,8 +23,12 @@ class NetworkMemberRepository(
                 MemberInfo(
                     levelName = payload.levelName,
                     subtitle = payload.subtitle,
-                    benefits = emptyList(),
-                    highlightLabel = "剩余导出 ${payload.remainingExportCount} 次",
+                    benefits = payload.benefits,
+                    highlightLabel = if (payload.levelName.equals("Admin", ignoreCase = true)) {
+                        "全部权益已开放"
+                    } else {
+                        "剩余导出 ${payload.remainingExportCount} 次"
+                    },
                     activePlanPriceLabel = payload.activePlanPriceLabel,
                 )
             }.getOrElse { fallback.getMemberInfo() }
@@ -54,7 +58,7 @@ class NetworkMemberRepository(
         fun fallbackAware(): MemberRepository {
             val fake = FakeMemberRepository()
             return NetworkMemberRepository(
-                apiClient = SimpleApiClient(YrsApiConfig.DefaultBaseUrl),
+                apiClient = SimpleApiClient(),
                 fallback = fake,
             )
         }
@@ -75,4 +79,5 @@ private data class MemberMePayload(
     val subtitle: String,
     val remainingExportCount: Int,
     val activePlanPriceLabel: String,
+    val benefits: List<String> = emptyList(),
 )

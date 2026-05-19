@@ -6,6 +6,9 @@ object YrsApiConfig {
     @Volatile
     private var backendOriginValue: String = "http://127.0.0.1:3000"
 
+    @Volatile
+    private var accessTokenValue: String? = null
+
     val BackendOrigin: String
         get() = backendOriginValue
 
@@ -17,6 +20,14 @@ object YrsApiConfig {
 
     fun configureBackendOrigin(origin: String) {
         backendOriginValue = origin.trimEnd('/')
+    }
+
+    fun configureAccessToken(token: String?) {
+        accessTokenValue = token?.takeIf { it.isNotBlank() }
+    }
+
+    fun authorizationHeader(): String? {
+        return accessTokenValue?.let { "Bearer $it" }
     }
 
     fun api(path: String): String {

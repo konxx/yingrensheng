@@ -67,16 +67,17 @@ class MaterialUploadHelper(
 
                 val responseType = object : TypeToken<ApiEnvelope<List<MaterialPayload>>>() {}.type
                 val payload = gson.fromJson<ApiEnvelope<List<MaterialPayload>>>(body, responseType)
-                payload.data.orEmpty().map {
+                payload.data.orEmpty().mapIndexed { index, item ->
                     MaterialItem(
-                        materialId = it.materialId,
-                        title = it.title,
-                        type = when (it.materialType) {
+                        materialId = item.materialId,
+                        title = item.title,
+                        type = when (item.materialType) {
                             "VIDEO" -> MaterialType.VIDEO
                             else -> MaterialType.PHOTO
                         },
-                        durationLabel = it.durationLabel,
-                        insight = it.insight,
+                        durationLabel = item.durationLabel,
+                        insight = item.insight,
+                        previewUri = item.previewUrl ?: uris.getOrNull(index)?.toString(),
                     )
                 }
             } finally {
@@ -146,4 +147,5 @@ private data class MaterialPayload(
     val materialType: String,
     val durationLabel: String,
     val insight: String,
+    val previewUrl: String? = null,
 )

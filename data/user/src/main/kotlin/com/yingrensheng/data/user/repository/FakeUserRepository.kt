@@ -32,6 +32,7 @@ class FakeUserRepository : UserRepository {
                 email = if (username == "admin") "admin@yingrensheng.local" else "demo@yingrensheng.local",
                 nickname = nickname,
                 avatarLabel = nickname.take(2),
+                role = if (username == "admin") "admin" else "user",
             ),
         )
         return AppResult.Success(Unit)
@@ -45,6 +46,7 @@ class FakeUserRepository : UserRepository {
                 email = email,
                 nickname = nickname,
                 avatarLabel = nickname.take(2),
+                role = "user",
             ),
         )
         return AppResult.Success(Unit)
@@ -63,6 +65,7 @@ class FakeUserRepository : UserRepository {
                 email = email,
                 nickname = nickname,
                 avatarLabel = nickname.take(2),
+                role = sessionState.value.user?.role ?: "user",
             ),
         )
         return AppResult.Success(Unit)

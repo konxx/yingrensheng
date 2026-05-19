@@ -135,8 +135,8 @@ class PreviewAssetModel(Base):
     subtitle_summary: Mapped[str] = mapped_column(Text)
     music_label: Mapped[str] = mapped_column(String(128))
     cover_caption: Mapped[str] = mapped_column(String(255))
-    video_url: Mapped[str] = mapped_column(String(255), default="")
-    cover_url: Mapped[str] = mapped_column(String(255), default="")
+    video_url: Mapped[str] = mapped_column(Text, default="")
+    cover_url: Mapped[str] = mapped_column(Text, default="")
     updated_at: Mapped[str] = mapped_column(String(64))
 
 
@@ -151,8 +151,8 @@ class WorkModel(Base):
     duration_label: Mapped[str] = mapped_column(String(64))
     status_label: Mapped[str] = mapped_column(String(64))
     updated_at: Mapped[str] = mapped_column(String(64))
-    cover_url: Mapped[str] = mapped_column(String(255), default="")
-    video_url: Mapped[str] = mapped_column(String(255), default="")
+    cover_url: Mapped[str] = mapped_column(Text, default="")
+    video_url: Mapped[str] = mapped_column(Text, default="")
 
 
 class OrderModel(Base):

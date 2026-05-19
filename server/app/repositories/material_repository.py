@@ -73,6 +73,13 @@ class MaterialRepository:
             ).scalars().all()
             return [self._to_schema(item) for item in models]
 
+    def get_by_material_id(self, material_id: str) -> MaterialResponse | None:
+        with SessionLocal() as session:
+            model = session.execute(
+                select(MaterialModel).where(MaterialModel.material_id == material_id),
+            ).scalar_one_or_none()
+            return self._to_schema(model) if model else None
+
     @staticmethod
     def _to_schema(model: MaterialModel) -> MaterialResponse:
         return MaterialResponse(
@@ -83,6 +90,7 @@ class MaterialRepository:
             durationLabel=model.duration_label,
             insight=model.insight,
             localPath=model.local_path,
+            previewUrl=f"/api/v1/materials/{model.material_id}/file",
             mimeType=model.mime_type,
             sizeBytes=model.size_bytes,
             status=model.status,

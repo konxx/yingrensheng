@@ -31,15 +31,20 @@ class NetworkUserRepository(
 
     override fun isBackendReachable(): Boolean {
         return runCatching {
+            println("YrsBackend checking ${YrsApiConfig.HealthUrl}")
             val connection = (URL(YrsApiConfig.HealthUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 2_000
                 readTimeout = 2_000
             }
             val ok = connection.responseCode in 200..299
+            println("YrsBackend health ${YrsApiConfig.HealthUrl} -> ${connection.responseCode}")
             connection.disconnect()
             ok
-        }.getOrDefault(false)
+        }.getOrElse { throwable ->
+            println("YrsBackend health check failed for ${YrsApiConfig.HealthUrl}: ${throwable.message}")
+            false
+        }
     }
 
     override fun acceptAgreement() {
@@ -61,6 +66,7 @@ class NetworkUserRepository(
                 type = loginType,
             )
             val response = envelope.requireData()
+            YrsApiConfig.configureAccessToken(response.accessToken)
             sessionState.value = sessionState.value.copy(
                 user = User(
                     userId = response.user.userId,
@@ -68,6 +74,7 @@ class NetworkUserRepository(
                     email = response.user.email,
                     nickname = response.user.nickname,
                     avatarLabel = response.user.nickname.take(2),
+                    role = response.user.role,
                 ),
             )
                 AppResult.Success(Unit)
@@ -92,6 +99,7 @@ class NetworkUserRepository(
                 type = registerType,
             )
             val response = envelope.requireData()
+            YrsApiConfig.configureAccessToken(response.accessToken)
             sessionState.value = sessionState.value.copy(
                 user = User(
                     userId = response.user.userId,
@@ -99,6 +107,7 @@ class NetworkUserRepository(
                     email = response.user.email,
                     nickname = response.user.nickname,
                     avatarLabel = response.user.nickname.take(2),
+                    role = response.user.role,
                 ),
             )
                 AppResult.Success(Unit)
@@ -135,6 +144,7 @@ class NetworkUserRepository(
                         email = response.email,
                         nickname = response.nickname,
                         avatarLabel = response.nickname.take(2),
+                        role = response.role,
                     ),
                 )
                 AppResult.Success(Unit)
@@ -148,7 +158,7 @@ class NetworkUserRepository(
         fun fallbackAware(): UserRepository {
             val fake = FakeUserRepository()
             return NetworkUserRepository(
-                apiClient = SimpleApiClient(YrsApiConfig.DefaultBaseUrl),
+                apiClient = SimpleApiClient(),
                 fallback = fake,
             )
         }
@@ -168,4 +178,5 @@ private data class LoginUser(
     val email: String,
     val nickname: String,
     val avatarUrl: String,
+    val role: String = "user",
 )

@@ -24,9 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
+import com.yingrensheng.core.designsystem.theme.WeUiAdminPurple
 import com.yingrensheng.core.designsystem.theme.WeUiBackground
 import com.yingrensheng.core.designsystem.theme.WeUiBorder
 import com.yingrensheng.core.designsystem.theme.WeUiGreen
+import com.yingrensheng.core.designsystem.theme.WeUiLiquidGold
 import com.yingrensheng.core.designsystem.theme.WeUiQr
 import com.yingrensheng.core.designsystem.theme.WeUiSurface
 import com.yingrensheng.core.designsystem.theme.WeUiTextSecondary
@@ -57,6 +59,8 @@ private data class MemberPlan(
 @Composable
 fun MemberCenterRoute() {
     var period by remember { mutableStateOf(BillingPeriod.MONTHLY) }
+    val memberInfo = MemberRepositoryProvider.current.getMemberInfo()
+    val isAdmin = memberInfo.levelName.equals("Admin", ignoreCase = true)
     val plans = MemberRepositoryProvider.current.getPlans().map {
         MemberPlan(
             name = it.name,
@@ -72,6 +76,10 @@ fun MemberCenterRoute() {
         title = "会员权益",
         subtitle = "根据创作频率选择 Lite / Pro / Max，不同时长自动应用对应折扣。",
     ) {
+        if (isAdmin) {
+            AdminAccessCard(memberInfo = memberInfo)
+        }
+
         BillingSwitcher(
             selected = period,
             onSelect = { period = it },
@@ -166,6 +174,52 @@ fun MemberCenterRoute() {
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminAccessCard(memberInfo: com.yingrensheng.core.model.member.MemberInfo) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(WeUiAdminPurple, RoundedCornerShape(22.dp))
+            .border(1.dp, WeUiLiquidGold, RoundedCornerShape(22.dp))
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Admin",
+                style = MaterialTheme.typography.headlineMedium,
+                color = WeUiLiquidGold,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "全部权益",
+                modifier = Modifier
+                    .background(WeUiLiquidGold.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+                    .border(1.dp, WeUiLiquidGold.copy(alpha = 0.72f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                color = WeUiLiquidGold,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Text(
+            text = memberInfo.subtitle,
+            color = WeUiLiquidGold.copy(alpha = 0.92f),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            memberInfo.benefits.forEach { benefit ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(text = "✓", color = WeUiLiquidGold, fontWeight = FontWeight.Bold)
+                    Text(text = benefit, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.88f))
                 }
             }
         }

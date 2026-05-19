@@ -107,6 +107,22 @@ def _ensure_upload_columns() -> None:
         conn.commit()
 
 
+def _ensure_url_text_columns() -> None:
+    if settings.db_driver.lower() != "mysql":
+        return
+    with engine.connect() as conn:
+        for table_name in ("preview_assets", "works"):
+            columns = {
+                row[0]: row[1].lower()
+                for row in conn.execute(text(f"SHOW COLUMNS FROM {table_name}"))
+            }
+            for column_name in ("cover_url", "video_url"):
+                if column_name in columns and columns[column_name] != "text":
+                    conn.execute(text(f"UPDATE {table_name} SET {column_name} = '' WHERE {column_name} IS NULL"))
+                    conn.execute(text(f"ALTER TABLE {table_name} MODIFY COLUMN {column_name} TEXT NOT NULL"))
+        conn.commit()
+
+
 def _seed_if_needed() -> None:
     Path(settings.storage_root).mkdir(parents=True, exist_ok=True)
     with SessionLocal() as session:
@@ -392,6 +408,7 @@ def initialize_database(on_mysql_fallback: Callable[[Exception], None] | None = 
             _ensure_project_columns()
             _ensure_task_columns()
             _ensure_upload_columns()
+            _ensure_url_text_columns()
             _seed_if_needed()
             return
         except OperationalError as exc:

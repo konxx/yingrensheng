@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.core.time import now_iso
 from app.db.models import WorkModel
@@ -74,3 +74,9 @@ class WorkRepository:
                 coverUrl=model.cover_url,
                 videoUrl=model.video_url,
             )
+
+    def delete(self, work_id: str) -> bool:
+        with SessionLocal() as session:
+            result = session.execute(delete(WorkModel).where(WorkModel.work_id == work_id))
+            session.commit()
+            return result.rowcount > 0

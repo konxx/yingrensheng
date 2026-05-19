@@ -72,6 +72,9 @@ class MaterialService:
     def list_materials(self, project_id: str) -> list[MaterialResponse]:
         return self.material_repository.list_by_project(project_id)
 
+    def get_material(self, material_id: str) -> MaterialResponse | None:
+        return self.material_repository.get_by_material_id(material_id)
+
     @staticmethod
     def _material_type(mime_type: str) -> str:
         if mime_type.startswith("image/"):
