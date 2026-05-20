@@ -1,13 +1,19 @@
 import base64
 from dataclasses import dataclass, field
+import hashlib
+import hmac
 import json
 import mimetypes
 from pathlib import Path
+import time
 import uuid
 
 from PIL import Image
 
 from app.core.settings import settings
+from app.core.time import now_iso
+from app.db.models import AuthRefreshTokenModel
+from app.db.session import SessionLocal
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.creation_repository import CreationRepository
 from app.repositories.member_repository import MemberRepository
@@ -44,7 +50,6 @@ from app.services.render_service import RenderService
 @dataclass
 class AuthService:
     repository: UserRepository
-    token_user_map: dict[str, str] = field(default_factory=dict)
 
     def send_sms(self, username: str, purpose: str) -> None:
         _ = (username, purpose)
@@ -54,13 +59,12 @@ class AuthService:
         profile = self.repository.verify_user(username=username, password=password or "123456")
         if profile is None:
             raise ValueError("INVALID_CREDENTIALS")
-        token = f"token_dev_{profile.user_id}_{uuid.uuid4().hex[:8]}"
-        refresh_token = f"refresh_dev_{profile.user_id}_{uuid.uuid4().hex[:8]}"
-        self.token_user_map[token] = profile.user_id
+        token = self._issue_access_token(profile.user_id)
+        refresh_token = self._issue_refresh_token(profile.user_id, device_id)
         return LoginResponseData(
             accessToken=token,
             refreshToken=refresh_token,
-            expiresInSeconds=7200,
+            expiresInSeconds=settings.access_token_expires_seconds,
             user=profile,
         )
 
@@ -74,13 +78,28 @@ class AuthService:
             password=payload.password,
             email=payload.email,
         )
-        token = f"token_dev_{profile.user_id}_{uuid.uuid4().hex[:8]}"
-        refresh_token = f"refresh_dev_{profile.user_id}_{uuid.uuid4().hex[:8]}"
-        self.token_user_map[token] = profile.user_id
+        token = self._issue_access_token(profile.user_id)
+        refresh_token = self._issue_refresh_token(profile.user_id, "android_local")
         return LoginResponseData(
             accessToken=token,
             refreshToken=refresh_token,
-            expiresInSeconds=7200,
+            expiresInSeconds=settings.access_token_expires_seconds,
+            user=profile,
+        )
+
+    def refresh(self, refresh_token: str, device_id: str) -> LoginResponseData:
+        user_id = self._consume_refresh_token(refresh_token, device_id)
+        if user_id is None:
+            raise ValueError("REFRESH_TOKEN_INVALID")
+        profile = self.repository.get_by_user_id(user_id)
+        if profile is None:
+            raise ValueError("USER_NOT_FOUND")
+        new_access_token = self._issue_access_token(profile.user_id)
+        new_refresh_token = self._issue_refresh_token(profile.user_id, device_id)
+        return LoginResponseData(
+            accessToken=new_access_token,
+            refreshToken=new_refresh_token,
+            expiresInSeconds=settings.access_token_expires_seconds,
             user=profile,
         )
 
@@ -88,10 +107,83 @@ class AuthService:
         if not token:
             return None
         normalized_token = token.removeprefix("Bearer ").strip()
-        user_id = self.token_user_map.get(normalized_token)
+        user_id = self._verify_access_token(normalized_token)
         if user_id is None:
             return None
         return self.repository.get_by_user_id(user_id)
+
+    def _issue_access_token(self, user_id: str) -> str:
+        now = int(time.time())
+        payload = {
+            "typ": "access",
+            "sub": user_id,
+            "iat": now,
+            "exp": now + settings.access_token_expires_seconds,
+            "jti": uuid.uuid4().hex,
+        }
+        return _encode_signed_payload(payload)
+
+    def _issue_refresh_token(self, user_id: str, device_id: str) -> str:
+        now = int(time.time())
+        token_id = uuid.uuid4().hex
+        payload = {
+            "typ": "refresh",
+            "sub": user_id,
+            "iat": now,
+            "exp": now + settings.refresh_token_expires_seconds,
+            "jti": token_id,
+            "did": device_id,
+        }
+        refresh_token = _encode_signed_payload(payload)
+        token_hash = _hash_token(refresh_token)
+        timestamp = now_iso()
+        with SessionLocal() as session:
+            session.add(
+                AuthRefreshTokenModel(
+                    token_id=token_id,
+                    user_id=user_id,
+                    token_hash=token_hash,
+                    device_id=device_id,
+                    revoked=False,
+                    expires_at_epoch=payload["exp"],
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                ),
+            )
+            session.commit()
+        return refresh_token
+
+    def _consume_refresh_token(self, refresh_token: str, device_id: str) -> str | None:
+        payload = _decode_signed_payload(refresh_token)
+        if payload is None or payload.get("typ") != "refresh":
+            return None
+        user_id = str(payload.get("sub", ""))
+        token_id = str(payload.get("jti", ""))
+        expires_at = int(payload.get("exp", 0))
+        if not user_id or not token_id or expires_at <= int(time.time()):
+            return None
+        token_hash = _hash_token(refresh_token)
+        with SessionLocal() as session:
+            model = session.query(AuthRefreshTokenModel).filter(
+                AuthRefreshTokenModel.token_id == token_id,
+                AuthRefreshTokenModel.token_hash == token_hash,
+            ).first()
+            if model is None or model.revoked or model.expires_at_epoch <= int(time.time()):
+                return None
+            model.revoked = True
+            model.device_id = device_id or model.device_id
+            model.updated_at = now_iso()
+            session.commit()
+        return user_id
+
+    def _verify_access_token(self, token: str) -> str | None:
+        payload = _decode_signed_payload(token)
+        if payload is None or payload.get("typ") != "access":
+            return None
+        if int(payload.get("exp", 0)) <= int(time.time()):
+            return None
+        user_id = str(payload.get("sub", ""))
+        return user_id or None
 
 
 @dataclass
@@ -1044,6 +1136,53 @@ def _local_image_data_url(path: str, mime_type: str) -> str:
         image.verify()
     encoded = base64.b64encode(file_path.read_bytes()).decode("ascii")
     return f"data:{resolved_mime_type};base64,{encoded}"
+
+
+def _base64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _base64url_decode(raw: str) -> bytes:
+    padding = "=" * (-len(raw) % 4)
+    return base64.urlsafe_b64decode(raw + padding)
+
+
+def _auth_signature(message: str) -> str:
+    digest = hmac.new(
+        settings.auth_token_secret.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    return _base64url_encode(digest)
+
+
+def _encode_signed_payload(payload: dict) -> str:
+    encoded_payload = _base64url_encode(json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+    signature = _auth_signature(encoded_payload)
+    return f"yrs1.{encoded_payload}.{signature}"
+
+
+def _decode_signed_payload(token: str) -> dict | None:
+    parts = token.split(".")
+    if len(parts) != 3 or parts[0] != "yrs1":
+        return None
+    message = parts[1]
+    expected_signature = _auth_signature(message)
+    if not hmac.compare_digest(expected_signature, parts[2]):
+        return None
+    try:
+        payload = json.loads(_base64url_decode(message).decode("utf-8"))
+    except (ValueError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _hash_token(token: str) -> str:
+    return hmac.new(
+        settings.auth_token_secret.encode("utf-8"),
+        token.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def _output_kind_for_scene(scene_id: str) -> str:

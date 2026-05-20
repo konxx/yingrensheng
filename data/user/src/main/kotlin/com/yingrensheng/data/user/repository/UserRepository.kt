@@ -11,6 +11,10 @@ interface UserRepository {
 
     fun acceptAgreement()
 
+    suspend fun restoreSession()
+
+    fun logout()
+
     suspend fun login(username: String, password: String = "123456"): AppResult<Unit>
 
     suspend fun register(username: String, nickname: String, email: String, password: String): AppResult<Unit>

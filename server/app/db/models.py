@@ -198,3 +198,17 @@ class UserAccountModel(Base):
     password: Mapped[str] = mapped_column(String(255))
     avatar_url: Mapped[str] = mapped_column(String(255), default="")
     role: Mapped[str] = mapped_column(String(32), default="user", index=True)
+
+
+class AuthRefreshTokenModel(Base):
+    __tablename__ = "auth_refresh_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    device_id: Mapped[str] = mapped_column(String(128), default="")
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    expires_at_epoch: Mapped[int] = mapped_column(BigInteger, index=True)
+    created_at: Mapped[str] = mapped_column(String(64))
+    updated_at: Mapped[str] = mapped_column(String(64))

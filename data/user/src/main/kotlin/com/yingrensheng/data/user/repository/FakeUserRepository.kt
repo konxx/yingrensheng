@@ -23,6 +23,12 @@ class FakeUserRepository : UserRepository {
         sessionState.value = sessionState.value.copy(hasAcceptedAgreement = true)
     }
 
+    override suspend fun restoreSession() = Unit
+
+    override fun logout() {
+        sessionState.value = sessionState.value.copy(user = null)
+    }
+
     override suspend fun login(username: String, password: String): AppResult<Unit> {
         val nickname = if (username == "admin") "Administrator" else "林青"
         sessionState.value = sessionState.value.copy(

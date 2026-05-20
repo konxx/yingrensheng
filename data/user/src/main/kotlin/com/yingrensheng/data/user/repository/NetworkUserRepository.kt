@@ -5,7 +5,9 @@ import com.yingrensheng.core.common.result.AppResult
 import com.yingrensheng.core.model.user.User
 import com.yingrensheng.core.model.user.UserSession
 import com.yingrensheng.core.network.NetworkApiResponse
+import com.yingrensheng.core.network.AuthSessionManager
 import com.yingrensheng.core.network.SimpleApiClient
+import com.yingrensheng.core.network.StoredAuthSession
 import com.yingrensheng.core.network.YrsApiConfig
 import com.yingrensheng.core.network.requireData
 import java.net.HttpURLConnection
@@ -51,11 +53,37 @@ class NetworkUserRepository(
         sessionState.value = sessionState.value.copy(hasAcceptedAgreement = true)
     }
 
+    override suspend fun restoreSession() {
+        withContext<StoredAuthSession?>(Dispatchers.IO) {
+            val stored = AuthSessionManager.restoreSession() ?: return@withContext null
+            if (stored.expiresAtEpochMillis <= System.currentTimeMillis()) {
+                AuthSessionManager.refreshBlocking(previousAccessToken = stored.accessToken)
+            }
+            AuthSessionManager.session()
+        }?.let { stored ->
+            sessionState.value = sessionState.value.copy(
+                user = User(
+                    userId = stored.userId,
+                    username = stored.username,
+                    email = stored.email,
+                    nickname = stored.nickname,
+                    avatarLabel = stored.avatarLabel,
+                    role = stored.role,
+                ),
+            )
+        }
+    }
+
+    override fun logout() {
+        AuthSessionManager.clearSession()
+        sessionState.value = sessionState.value.copy(user = null)
+    }
+
     override suspend fun login(username: String, password: String): AppResult<Unit> {
         return withContext(Dispatchers.IO) {
             runCatching {
             val loginType = object : TypeToken<NetworkApiResponse<LoginResponse>>() {}.type
-            val envelope: NetworkApiResponse<LoginResponse> = apiClient.post(
+            val envelope: NetworkApiResponse<LoginResponse> = apiClient.postWithoutAuth(
                 path = "/auth/login",
                 body = mapOf(
                     "username" to username,
@@ -66,7 +94,7 @@ class NetworkUserRepository(
                 type = loginType,
             )
             val response = envelope.requireData()
-            YrsApiConfig.configureAccessToken(response.accessToken)
+            saveAuthSession(response)
             sessionState.value = sessionState.value.copy(
                 user = User(
                     userId = response.user.userId,
@@ -88,7 +116,7 @@ class NetworkUserRepository(
         return withContext(Dispatchers.IO) {
             runCatching {
             val registerType = object : TypeToken<NetworkApiResponse<LoginResponse>>() {}.type
-            val envelope: NetworkApiResponse<LoginResponse> = apiClient.post(
+            val envelope: NetworkApiResponse<LoginResponse> = apiClient.postWithoutAuth(
                 path = "/auth/register",
                 body = mapOf(
                     "username" to username,
@@ -99,7 +127,7 @@ class NetworkUserRepository(
                 type = registerType,
             )
             val response = envelope.requireData()
-            YrsApiConfig.configureAccessToken(response.accessToken)
+            saveAuthSession(response)
             sessionState.value = sessionState.value.copy(
                 user = User(
                     userId = response.user.userId,
@@ -115,6 +143,22 @@ class NetworkUserRepository(
                 AppResult.Error(message = throwable.message ?: "注册失败", cause = throwable)
             }
         }
+    }
+
+    private fun saveAuthSession(response: LoginResponse) {
+        AuthSessionManager.saveSession(
+            StoredAuthSession(
+                accessToken = response.accessToken,
+                refreshToken = response.refreshToken,
+                expiresAtEpochMillis = System.currentTimeMillis() + response.expiresInSeconds * 1000L,
+                userId = response.user.userId,
+                username = response.user.username,
+                email = response.user.email,
+                nickname = response.user.nickname,
+                avatarLabel = response.user.nickname.take(2),
+                role = response.user.role,
+            ),
+        )
     }
 
     override suspend fun updateProfile(

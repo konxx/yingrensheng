@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.auth import LoginRequest, LoginResponseData, RegisterRequest, SendSmsRequest
+from app.schemas.auth import LoginRequest, LoginResponseData, RefreshTokenRequest, RegisterRequest, SendSmsRequest
 from app.schemas.common import ApiResponse
 from app.services.container import service_container
 
@@ -35,3 +35,15 @@ def register(payload: RegisterRequest) -> ApiResponse[LoginResponseData]:
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     return ApiResponse.success(data=data, request_id="req_auth_register")
+
+
+@router.post("/refresh", response_model=ApiResponse[LoginResponseData])
+def refresh(payload: RefreshTokenRequest) -> ApiResponse[LoginResponseData]:
+    try:
+        data = service_container.auth_service.refresh(
+            refresh_token=payload.refresh_token,
+            device_id=payload.device_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    return ApiResponse.success(data=data, request_id="req_auth_refresh")

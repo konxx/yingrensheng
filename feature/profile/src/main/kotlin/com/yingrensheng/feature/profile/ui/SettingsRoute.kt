@@ -12,6 +12,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,7 +28,9 @@ import com.yingrensheng.core.designsystem.theme.WeUiTextSecondary
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 
 @Composable
-fun SettingsRoute() {
+fun SettingsRoute(
+    onLogout: () -> Unit = {},
+) {
     var notifyEnabled by remember { mutableStateOf(true) }
     var wifiOnly by remember { mutableStateOf(true) }
     var autoResume by remember { mutableStateOf(true) }
@@ -97,6 +100,21 @@ fun SettingsRoute() {
             Text("关于映人生", style = MaterialTheme.typography.titleLarge)
             Text("版本 0.1.0", color = WeUiTextSecondary)
             Text("映人生是一个把照片、视频和几句心里话整理成短片的影像创作工具。", color = WeUiTextSecondary)
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(WeUiSurface, RoundedCornerShape(18.dp))
+                .border(1.dp, WeUiBorder, RoundedCornerShape(18.dp))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("账号", style = MaterialTheme.typography.titleLarge)
+            Text("退出后会清除本机加密保存的 access token、refresh token 和自动登录状态。", color = WeUiTextSecondary)
+            TextButton(onClick = onLogout) {
+                Text("退出登录")
+            }
         }
     }
 }

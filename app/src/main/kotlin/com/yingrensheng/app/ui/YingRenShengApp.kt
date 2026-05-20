@@ -30,6 +30,7 @@ import com.yingrensheng.core.navigation.route.topLevelDestinations
 import com.yingrensheng.core.common.result.AppResult
 import com.yingrensheng.core.model.creation.SceneTemplate
 import com.yingrensheng.core.model.work.Work
+import com.yingrensheng.core.network.AuthSessionManager
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
 import com.yingrensheng.data.member.repository.MemberRepositoryProvider
 import com.yingrensheng.data.user.repository.UserRepositoryProvider
@@ -97,6 +98,16 @@ fun YingRenShengApp() {
     }
 
     LaunchedEffect(backendProbeVersion) {
+        if (loginPreferenceStore.hasAcceptedAgreement()) {
+            userRepository.acceptAgreement()
+        }
+        userRepository.restoreSession()
+        AuthSessionManager.setOnSessionExpired {
+            scope.launch {
+                userRepository.logout()
+                currentRoute = AppRoute.Login
+            }
+        }
         refreshBackendState()
         if (backendReady == true) {
             currentRoute = resolvePostBackendRoute()
@@ -227,6 +238,7 @@ fun YingRenShengApp() {
             AppRoute.Agreement -> AgreementRoute(
                 onAccept = {
                     userRepository.acceptAgreement()
+                    loginPreferenceStore.saveAcceptedAgreement()
                     currentRoute = AppRoute.Login
                 },
             )
@@ -361,7 +373,12 @@ fun YingRenShengApp() {
 
             AppRoute.ProfileQr -> UserQrRoute()
 
-            AppRoute.Settings -> SettingsRoute()
+            AppRoute.Settings -> SettingsRoute(
+                onLogout = {
+                    userRepository.logout()
+                    popBackTo(AppRoute.Login)
+                },
+            )
 
             AppRoute.MemberCenter -> MemberCenterRoute()
 

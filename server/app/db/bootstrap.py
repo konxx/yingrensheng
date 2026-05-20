@@ -10,6 +10,7 @@ from app.core.settings import settings
 from app.core.time import now_iso
 from app.db.base import Base
 from app.db.models import (
+    AuthRefreshTokenModel,
     MemberPlanModel,
     OrderModel,
     PreviewAssetModel,
@@ -150,6 +151,35 @@ def _ensure_work_asset_table() -> None:
                     KEY ix_work_assets_project_id (project_id),
                     KEY ix_work_assets_output_kind (output_kind),
                     KEY ix_work_assets_asset_type (asset_type)
+                ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+                """
+            ),
+        )
+        conn.commit()
+
+
+def _ensure_auth_refresh_token_table() -> None:
+    if settings.db_driver.lower() != "mysql":
+        return
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS auth_refresh_tokens (
+                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    token_id VARCHAR(64) NOT NULL,
+                    user_id VARCHAR(64) NOT NULL,
+                    token_hash VARCHAR(128) NOT NULL,
+                    device_id VARCHAR(128) NOT NULL DEFAULT '',
+                    revoked TINYINT(1) NOT NULL DEFAULT 0,
+                    expires_at_epoch BIGINT NOT NULL,
+                    created_at VARCHAR(64) NOT NULL,
+                    updated_at VARCHAR(64) NOT NULL,
+                    UNIQUE KEY ix_auth_refresh_tokens_token_id (token_id),
+                    UNIQUE KEY ix_auth_refresh_tokens_token_hash (token_hash),
+                    KEY ix_auth_refresh_tokens_user_id (user_id),
+                    KEY ix_auth_refresh_tokens_revoked (revoked),
+                    KEY ix_auth_refresh_tokens_expires_at_epoch (expires_at_epoch)
                 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
                 """
             ),
@@ -463,6 +493,7 @@ def initialize_database(on_mysql_fallback: Callable[[Exception], None] | None = 
             _ensure_upload_columns()
             _ensure_url_text_columns()
             _ensure_work_asset_table()
+            _ensure_auth_refresh_token_table()
             _seed_if_needed()
             return
         except OperationalError as exc:

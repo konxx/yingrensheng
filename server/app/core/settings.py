@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     app_reload: bool = Field(default=True, alias="APP_RELOAD")
     ffmpeg_path: str = Field(default="ffmpeg", alias="FFMPEG_PATH")
     storage_root: str = Field(default=str(BASE_DIR / "storage"), alias="STORAGE_ROOT")
+    auth_token_secret: str = Field(default="yingrensheng-dev-auth-secret", alias="AUTH_TOKEN_SECRET")
+    access_token_expires_seconds: int = Field(default=7200, alias="ACCESS_TOKEN_EXPIRES_SECONDS")
+    refresh_token_expires_seconds: int = Field(default=2592000, alias="REFRESH_TOKEN_EXPIRES_SECONDS")
 
     mysql_host: str = Field(default="127.0.0.1", alias="MYSQL_HOST")
     mysql_port: int = Field(default=3306, alias="MYSQL_PORT")

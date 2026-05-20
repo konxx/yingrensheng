@@ -28,6 +28,13 @@ class RegisterRequest(BaseModel):
     password: str
 
 
+class RefreshTokenRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    refresh_token: str = Field(alias="refreshToken")
+    device_id: str = Field(default="android_local", alias="deviceId")
+
+
 class LoginResponseData(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
