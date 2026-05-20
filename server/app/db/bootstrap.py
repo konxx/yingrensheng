@@ -20,6 +20,7 @@ from app.db.models import (
     TaskModel,
     UserAccountModel,
     WorkModel,
+    WorkAssetModel,
 )
 from app.db.session import SessionLocal, engine
 
@@ -120,6 +121,39 @@ def _ensure_url_text_columns() -> None:
                 if column_name in columns and columns[column_name] != "text":
                     conn.execute(text(f"UPDATE {table_name} SET {column_name} = '' WHERE {column_name} IS NULL"))
                     conn.execute(text(f"ALTER TABLE {table_name} MODIFY COLUMN {column_name} TEXT NOT NULL"))
+        conn.commit()
+
+
+def _ensure_work_asset_table() -> None:
+    if settings.db_driver.lower() != "mysql":
+        return
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS work_assets (
+                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    asset_id VARCHAR(64) NOT NULL,
+                    work_id VARCHAR(64) NOT NULL,
+                    project_id VARCHAR(64) NOT NULL,
+                    output_kind VARCHAR(64) NOT NULL,
+                    asset_type VARCHAR(64) NOT NULL,
+                    order_index INT NOT NULL,
+                    title VARCHAR(255) NOT NULL,
+                    summary TEXT NOT NULL,
+                    url TEXT NOT NULL,
+                    text_content TEXT NOT NULL,
+                    metadata_json TEXT NOT NULL,
+                    updated_at VARCHAR(64) NOT NULL,
+                    UNIQUE KEY ix_work_assets_asset_id (asset_id),
+                    KEY ix_work_assets_work_id (work_id),
+                    KEY ix_work_assets_project_id (project_id),
+                    KEY ix_work_assets_output_kind (output_kind),
+                    KEY ix_work_assets_asset_type (asset_type)
+                ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+                """
+            ),
+        )
         conn.commit()
 
 
@@ -334,6 +368,25 @@ def _seed_if_needed() -> None:
                     video_url="",
                 ),
             )
+        if not session.query(WorkAssetModel).first():
+            session.add_all(
+                [
+                    WorkAssetModel(
+                        asset_id="asset_seed_001",
+                        work_id="work_001",
+                        project_id="project_seed_001",
+                        output_kind="CHARACTER_STORY",
+                        asset_type="TEXT",
+                        order_index=0,
+                        title="角色故事正文",
+                        summary="西游记角色穿越的成品故事包。",
+                        url="",
+                        text_content="主角一睁眼，已身披素色僧衣，站在女儿国城门外。通关文牒上多出的陌生姓名，意味着他不只是旁观者，而是这段取经路的新变量。",
+                        metadata_json=json.dumps({"label": "角色故事包"}, ensure_ascii=False),
+                        updated_at=now_iso(),
+                    ),
+                ],
+            )
         if not session.query(OrderModel).first():
             session.add_all(
                 [
@@ -409,6 +462,7 @@ def initialize_database(on_mysql_fallback: Callable[[Exception], None] | None = 
             _ensure_task_columns()
             _ensure_upload_columns()
             _ensure_url_text_columns()
+            _ensure_work_asset_table()
             _seed_if_needed()
             return
         except OperationalError as exc:

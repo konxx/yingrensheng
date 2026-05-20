@@ -61,6 +61,13 @@ data class ExportPlan(
     val benefits: List<String>,
 )
 
+enum class CreationOutputKind {
+    CHARACTER_STORY,
+    STORY_TEXT,
+    COMIC_STORYBOARD,
+    SHORT_VIDEO,
+}
+
 data class CreationSession(
     val mode: CreationMode? = null,
     val selectedScene: SceneTemplate? = null,
@@ -75,3 +82,16 @@ data class CreationSession(
     val selectedExportPlan: ExportPlan? = null,
     val currentProjectId: String? = null,
 )
+
+fun CreationSession.outputKind(): CreationOutputKind {
+    val sceneId = selectedScene?.sceneId.orEmpty()
+    return when {
+        sceneId == "scene_media_short_video" -> CreationOutputKind.SHORT_VIDEO
+        sceneId == "scene_media_comic" -> CreationOutputKind.COMIC_STORYBOARD
+        sceneId.startsWith("scene_outline") || mode == CreationMode.OUTLINE_STORY -> CreationOutputKind.STORY_TEXT
+        sceneId.startsWith("scene_character") || mode == CreationMode.CHARACTER_TIME_TRAVEL -> CreationOutputKind.CHARACTER_STORY
+        else -> CreationOutputKind.STORY_TEXT
+    }
+}
+
+fun CreationSession.requiresVideoPreview(): Boolean = outputKind() == CreationOutputKind.SHORT_VIDEO

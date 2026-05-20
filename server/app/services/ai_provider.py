@@ -50,7 +50,7 @@ class DashScopeAiProvider:
         }
 
     def chat_json(self, system_prompt: str, user_prompt: str, fallback: Any) -> Any:
-        if not self.has_text_credentials:
+        if not self.has_text_credentials or not settings.ai_text_sync_enabled:
             return fallback
         if _requires_multimodal_text(self.text_model):
             return self._multimodal_chat_json(system_prompt, user_prompt)

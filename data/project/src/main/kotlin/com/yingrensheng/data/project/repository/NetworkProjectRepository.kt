@@ -124,7 +124,7 @@ private fun ProjectPayload.toModel(): Project {
         moodLabel = when (mode) {
             "CHARACTER_TIME_TRAVEL" -> "角色穿越"
             "OUTLINE_STORY" -> "故事创作"
-            "NOVEL_TO_MEDIA" -> "小说成片"
+            "NOVEL_TO_MEDIA" -> "小说改编"
             else -> "后端同步"
         },
         updatedAt = runCatching { Instant.parse(updatedAt) }.getOrDefault(Instant.now()),

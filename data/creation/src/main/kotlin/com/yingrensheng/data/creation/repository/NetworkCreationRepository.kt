@@ -10,6 +10,9 @@ import com.yingrensheng.core.model.creation.RenderTask
 import com.yingrensheng.core.model.creation.SceneTemplate
 import com.yingrensheng.core.model.creation.StoryDraft
 import com.yingrensheng.core.model.creation.StoryboardSection
+import com.yingrensheng.core.model.creation.requiresVideoPreview
+import com.yingrensheng.core.model.creation.outputKind
+import com.yingrensheng.core.model.creation.CreationOutputKind
 import com.yingrensheng.core.model.material.MaterialItem
 import com.yingrensheng.core.model.material.MaterialType
 import com.yingrensheng.core.model.project.CreationMode
@@ -81,8 +84,6 @@ class NetworkCreationRepository(
             NarrativeStyle("style_webnovel", "网文爽感", "节奏更快，冲突更直接，适合原创故事和连载开篇"),
         )
     }
-
-    override fun exportPlans(): List<ExportPlan> = fallback.exportPlans()
 
     override fun selectMode(mode: CreationMode) {
         sessionState.value = CreationSession(mode = mode)
@@ -170,7 +171,7 @@ class NetworkCreationRepository(
                 val taskEnvelope: NetworkApiResponse<TaskPayload> = apiClient.post(
                     path = "/projects/$projectId/story-draft/generate",
                     body = mapOf(
-                        "styleId" to (session.selectedStyle?.styleId ?: "style_cinematic"),
+                        "styleId" to (session.selectedStyle?.styleId ?: session.defaultStyleId()),
                         "themeLine" to enrichedThemeLine,
                     ),
                     type = taskType,
@@ -242,6 +243,26 @@ class NetworkCreationRepository(
                         estimatedRemainingSeconds = task.estimatedRemainingSeconds,
                     ),
                 )
+                if (!sessionState.value.requiresVideoPreview()) {
+                    runCatching {
+                        val previewType = object : TypeToken<NetworkApiResponse<PreviewPayload>>() {}.type
+                        val previewEnvelope: NetworkApiResponse<PreviewPayload> = apiClient.get(
+                            "/projects/$projectId/preview",
+                            previewType,
+                        )
+                        val preview = previewEnvelope.requireData()
+                        sessionState.value = sessionState.value.copy(
+                            previewAsset = PreviewAsset(
+                                title = preview.title,
+                                subtitleSummary = preview.subtitleSummary,
+                                musicLabel = preview.musicLabel,
+                                coverCaption = preview.coverCaption,
+                                coverUrl = preview.coverUrl,
+                                videoUrl = preview.videoUrl,
+                            ),
+                        )
+                    }
+                }
             }.onFailure {
                 fallback.buildStoryboard()
                 sessionState.value = fallback.observeSession().value
@@ -250,6 +271,11 @@ class NetworkCreationRepository(
     }
 
     override suspend fun createPreview() {
+        if (!sessionState.value.requiresVideoPreview()) {
+            fallback.createPreview()
+            sessionState.value = fallback.observeSession().value
+            return
+        }
         val projectId = sessionState.value.currentProjectId ?: ProjectRepositoryProvider.current.latestProject()?.projectId
         if (projectId == null) return
         withContext(Dispatchers.IO) {
@@ -312,6 +338,7 @@ class NetworkCreationRepository(
     override suspend fun startExport() {
         val selectedPlan = sessionState.value.selectedExportPlan ?: return
         val projectId = sessionState.value.currentProjectId ?: ProjectRepositoryProvider.current.latestProject()?.projectId ?: return
+        val kind = sessionState.value.outputKind()
         withContext(Dispatchers.IO) {
             runCatching {
                 val taskType = object : TypeToken<NetworkApiResponse<TaskPayload>>() {}.type
@@ -319,8 +346,8 @@ class NetworkCreationRepository(
                     path = "/exports/$projectId",
                     body = mapOf(
                         "exportPlanId" to selectedPlan.planId,
-                        "resolution" to "1080P",
-                        "removeWatermark" to true,
+                        "resolution" to kind.exportResolutionLabel(),
+                        "removeWatermark" to (kind == CreationOutputKind.SHORT_VIDEO),
                     ),
                     type = taskType,
                 )
@@ -345,6 +372,8 @@ class NetworkCreationRepository(
             }
         }
     }
+
+    override fun exportPlans(outputKind: CreationOutputKind): List<ExportPlan> = fallback.exportPlans(outputKind)
 
     companion object {
         fun fallbackAware(): CreationRepository {
@@ -474,5 +503,26 @@ private fun Throwable.toExportErrorMessage(): String {
         "HTTP 409" in raw -> "导出前置资源不完整"
         raw.isNotBlank() -> raw
         else -> "未知网络或后端异常"
+    }
+}
+
+private fun CreationSession.defaultStyleId(): String {
+    return when (selectedScene?.sceneId) {
+        "scene_character_xiyou" -> "style_classic"
+        "scene_character_honglou" -> "style_classic"
+        "scene_outline_history" -> "style_classic"
+        "scene_outline_original" -> "style_webnovel"
+        "scene_media_comic" -> "style_comic"
+        "scene_media_short_video" -> "style_cinematic"
+        else -> "style_cinematic"
+    }
+}
+
+private fun CreationOutputKind.exportResolutionLabel(): String {
+    return when (this) {
+        CreationOutputKind.STORY_TEXT -> "TEXT_PACKAGE"
+        CreationOutputKind.COMIC_STORYBOARD -> "COMIC_STORYBOARD_PACKAGE"
+        CreationOutputKind.CHARACTER_STORY -> "CHARACTER_STORY_PACKAGE"
+        CreationOutputKind.SHORT_VIDEO -> "1080P"
     }
 }

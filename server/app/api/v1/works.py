@@ -1,7 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.schemas.common import ApiResponse
-from app.schemas.work import WorkResponse
+from app.schemas.work import WorkAssetResponse, WorkResponse
 from app.services.container import service_container
 
 
@@ -13,6 +13,17 @@ def list_works() -> ApiResponse[list[WorkResponse]]:
     return ApiResponse.success(
         data=service_container.work_service.list_works(),
         request_id="req_works_list",
+    )
+
+
+@router.get("/{work_id}/assets", response_model=ApiResponse[list[WorkAssetResponse]])
+def list_work_assets(work_id: str) -> ApiResponse[list[WorkAssetResponse]]:
+    work = service_container.work_service.get_work(work_id)
+    if work is None:
+        raise HTTPException(status_code=404, detail="WORK_NOT_FOUND")
+    return ApiResponse.success(
+        data=service_container.work_service.list_work_assets(work_id),
+        request_id="req_work_assets",
     )
 
 

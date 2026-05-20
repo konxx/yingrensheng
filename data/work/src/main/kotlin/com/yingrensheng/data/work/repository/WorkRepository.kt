@@ -1,7 +1,9 @@
 package com.yingrensheng.data.work.repository
 
 import com.google.gson.reflect.TypeToken
+import com.yingrensheng.core.model.creation.StoryboardSection
 import com.yingrensheng.core.model.work.Work
+import com.yingrensheng.core.model.work.WorkAsset
 import com.yingrensheng.core.network.NetworkApiResponse
 import com.yingrensheng.core.network.SimpleApiClient
 import com.yingrensheng.core.network.YrsApiConfig
@@ -14,6 +16,8 @@ import kotlinx.coroutines.runBlocking
 
 interface WorkRepository {
     fun getWorks(): List<Work>
+    fun getWorkAssets(workId: String): List<WorkAsset>
+    fun getStoryboard(projectId: String): List<StoryboardSection>
     fun deleteWork(workId: String): Boolean
 }
 
@@ -34,6 +38,7 @@ class FakeWorkRepository : WorkRepository {
             updatedAt = Instant.now().minusSeconds(7200),
             coverUrl = YrsApiConfig.asset("/storage/previews/project_seed_001.jpg"),
             videoUrl = YrsApiConfig.asset("/storage/previews/project_seed_001.gif"),
+            outputKind = "SHORT_VIDEO",
         ),
         Work(
             workId = "work_002",
@@ -45,11 +50,55 @@ class FakeWorkRepository : WorkRepository {
             updatedAt = Instant.now().minusSeconds(14400),
             coverUrl = "",
             videoUrl = "",
+            outputKind = "COMIC_STORYBOARD",
         ),
     )
 
     override fun getWorks(): List<Work> {
         return works.toList()
+    }
+
+    override fun getWorkAssets(workId: String): List<WorkAsset> {
+        val work = works.firstOrNull { it.workId == workId } ?: return emptyList()
+        return if (work.outputKind == "COMIC_STORYBOARD") {
+            sampleComicStoryboard(work.projectId).mapIndexed { index, section ->
+                WorkAsset(
+                    assetId = "asset_fake_${index + 1}",
+                    workId = workId,
+                    projectId = work.projectId,
+                    outputKind = "COMIC_STORYBOARD",
+                    assetType = "COMIC_PANEL",
+                    orderIndex = index,
+                    title = section.title,
+                    summary = section.summary,
+                    url = "",
+                    textContent = section.subtitleLine,
+                )
+            }
+        } else {
+            listOf(
+                WorkAsset(
+                    assetId = "asset_fake_text",
+                    workId = workId,
+                    projectId = work.projectId,
+                    outputKind = work.outputKind,
+                    assetType = "TEXT",
+                    orderIndex = 0,
+                    title = work.title,
+                    summary = "开发版本地成品包。",
+                    url = work.coverUrl,
+                    textContent = "这里展示完整作品正文、设定或脚本。",
+                ),
+            )
+        }
+    }
+
+    override fun getStoryboard(projectId: String): List<StoryboardSection> {
+        return if (projectId == "project_novel") {
+            sampleComicStoryboard(projectId)
+        } else {
+            emptyList()
+        }
     }
 
     override fun deleteWork(workId: String): Boolean {
@@ -75,11 +124,65 @@ class NetworkWorkRepository(
                         durationLabel = it.durationLabel,
                         statusLabel = it.statusLabel,
                         updatedAt = runCatching { Instant.parse(it.updatedAt) }.getOrDefault(Instant.now()),
-                        coverUrl = it.coverUrl,
-                        videoUrl = it.videoUrl,
+                        coverUrl = YrsApiConfig.assetUrl(it.coverUrl),
+                        videoUrl = YrsApiConfig.assetUrl(it.videoUrl),
+                        outputKind = it.outputKind,
                     )
                 }
             }.getOrElse { fallback.getWorks() }
+        }
+    }
+
+    override fun getStoryboard(projectId: String): List<StoryboardSection> {
+        return runBlocking(Dispatchers.IO) {
+            runCatching {
+                val type = object : TypeToken<NetworkApiResponse<List<StoryboardPayload>>>() {}.type
+                val encodedProjectId = URLEncoder.encode(projectId, StandardCharsets.UTF_8.name())
+                val envelope: NetworkApiResponse<List<StoryboardPayload>> = apiClient.get(
+                    "/projects/$encodedProjectId/storyboard",
+                    type,
+                )
+                envelope.requireData().sortedBy { it.orderIndex }.map {
+                    StoryboardSection(
+                        sectionId = it.sectionId,
+                        title = it.title,
+                        summary = it.summary,
+                        subtitleLine = it.subtitleLine,
+                        durationLabel = it.durationLabel,
+                    )
+                }
+            }.getOrElse {
+                fallback.getStoryboard(projectId)
+            }
+        }
+    }
+
+    override fun getWorkAssets(workId: String): List<WorkAsset> {
+        return runBlocking(Dispatchers.IO) {
+            runCatching {
+                val type = object : TypeToken<NetworkApiResponse<List<WorkAssetPayload>>>() {}.type
+                val encodedWorkId = URLEncoder.encode(workId, StandardCharsets.UTF_8.name())
+                val envelope: NetworkApiResponse<List<WorkAssetPayload>> = apiClient.get(
+                    "/works/$encodedWorkId/assets",
+                    type,
+                )
+                envelope.requireData().sortedBy { it.orderIndex }.map {
+                    WorkAsset(
+                        assetId = it.assetId,
+                        workId = it.workId,
+                        projectId = it.projectId,
+                        outputKind = it.outputKind,
+                        assetType = it.assetType,
+                        orderIndex = it.orderIndex,
+                        title = it.title,
+                        summary = it.summary,
+                        url = YrsApiConfig.assetUrl(it.url),
+                        textContent = it.textContent,
+                    )
+                }
+            }.getOrElse {
+                fallback.getWorkAssets(workId)
+            }
         }
     }
 
@@ -117,8 +220,44 @@ private data class WorkPayload(
     val updatedAt: String,
     val coverUrl: String,
     val videoUrl: String,
+    val outputKind: String = "",
+)
+
+private data class StoryboardPayload(
+    val sectionId: String,
+    val projectId: String,
+    val orderIndex: Int,
+    val title: String,
+    val summary: String,
+    val subtitleLine: String,
+    val durationLabel: String,
 )
 
 private data class DeleteWorkPayload(
     val deleted: Boolean,
 )
+
+private data class WorkAssetPayload(
+    val assetId: String,
+    val workId: String,
+    val projectId: String,
+    val outputKind: String,
+    val assetType: String,
+    val orderIndex: Int,
+    val title: String,
+    val summary: String,
+    val url: String,
+    val textContent: String,
+)
+
+private fun sampleComicStoryboard(projectId: String): List<StoryboardSection> {
+    return List(8) { index ->
+        StoryboardSection(
+            sectionId = "${projectId}_panel_${index + 1}",
+            title = "第 ${index + 1} 格：漫画分镜",
+            summary = "这里展示小说拆解后的画面、人物动作和构图提示。",
+            subtitleLine = "对白/旁白框：这一格承接上一格的冲突。",
+            durationLabel = if (index < 4) "第 1 页" else "第 2 页",
+        )
+    }
+}

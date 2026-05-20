@@ -12,4 +12,18 @@ data class Work(
     val updatedAt: Instant,
     val coverUrl: String,
     val videoUrl: String,
+    val outputKind: String = "",
+)
+
+data class WorkAsset(
+    val assetId: String,
+    val workId: String,
+    val projectId: String,
+    val outputKind: String,
+    val assetType: String,
+    val orderIndex: Int,
+    val title: String,
+    val summary: String,
+    val url: String,
+    val textContent: String,
 )

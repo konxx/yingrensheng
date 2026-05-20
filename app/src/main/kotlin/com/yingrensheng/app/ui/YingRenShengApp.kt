@@ -28,6 +28,7 @@ import com.yingrensheng.core.navigation.route.AppRoute
 import com.yingrensheng.core.navigation.route.TopLevelDestination
 import com.yingrensheng.core.navigation.route.topLevelDestinations
 import com.yingrensheng.core.common.result.AppResult
+import com.yingrensheng.core.model.creation.SceneTemplate
 import com.yingrensheng.core.model.work.Work
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
 import com.yingrensheng.data.member.repository.MemberRepositoryProvider
@@ -41,7 +42,6 @@ import com.yingrensheng.feature.create.ui.CreateEntryRoute
 import com.yingrensheng.feature.create.ui.InterviewRoute
 import com.yingrensheng.feature.create.ui.MaterialImportRoute
 import com.yingrensheng.feature.create.ui.MaterialReviewRoute
-import com.yingrensheng.feature.create.ui.SceneSelectRoute
 import com.yingrensheng.feature.create.ui.StoryDraftRoute
 import com.yingrensheng.feature.create.ui.StoryGeneratingRoute
 import com.yingrensheng.feature.create.ui.StyleSelectRoute
@@ -117,6 +117,61 @@ fun YingRenShengApp() {
     fun popBackTo(route: String) {
         currentRoute = route
         routeBackStack.removeAll { true }
+    }
+
+    fun firstRouteForScene(scene: SceneTemplate): String {
+        return when (scene.sceneId) {
+            "scene_character_xiyou" -> AppRoute.MaterialImport
+            "scene_character_honglou" -> AppRoute.MaterialImport
+            "scene_outline_history" -> AppRoute.MaterialImport
+            "scene_outline_original" -> AppRoute.MaterialImport
+            "scene_media_comic" -> AppRoute.MaterialImport
+            "scene_media_short_video" -> AppRoute.MaterialImport
+            else -> AppRoute.MaterialImport
+        }
+    }
+
+    fun routeAfterMaterialImport(): String {
+        return when (creationRepository.observeSession().value.selectedScene?.sceneId) {
+            "scene_character_xiyou" -> AppRoute.StoryDraft
+            "scene_character_honglou" -> AppRoute.MaterialReview
+            "scene_outline_history" -> AppRoute.StyleSelect
+            "scene_outline_original" -> AppRoute.Interview
+            "scene_media_comic" -> AppRoute.StoryGenerating
+            "scene_media_short_video" -> AppRoute.StyleSelect
+            else -> AppRoute.StoryDraft
+        }
+    }
+
+    fun routeAfterMaterialReview(): String {
+        return when (creationRepository.observeSession().value.selectedScene?.sceneId) {
+            "scene_character_honglou" -> AppRoute.Interview
+            else -> AppRoute.StoryDraft
+        }
+    }
+
+    fun routeAfterInterview(): String {
+        return when (creationRepository.observeSession().value.selectedScene?.sceneId) {
+            "scene_outline_original" -> AppRoute.StoryDraft
+            "scene_character_honglou" -> AppRoute.StyleSelect
+            else -> AppRoute.StoryDraft
+        }
+    }
+
+    fun routeAfterStyleSelect(): String {
+        return when (creationRepository.observeSession().value.selectedScene?.sceneId) {
+            "scene_outline_history" -> AppRoute.StoryGenerating
+            "scene_media_short_video" -> AppRoute.StoryGenerating
+            "scene_character_honglou" -> AppRoute.StoryDraft
+            else -> AppRoute.StoryDraft
+        }
+    }
+
+    fun routeAfterStoryDraft(): String {
+        return when (creationRepository.observeSession().value.selectedScene?.sceneId) {
+            "scene_outline_original" -> AppRoute.StoryGenerating
+            else -> AppRoute.StoryGenerating
+        }
     }
 
     BackHandler {
@@ -217,33 +272,29 @@ fun YingRenShengApp() {
             )
 
             AppRoute.CreateEntry -> CreateEntryRoute(
-                onModeSelected = { navigate(AppRoute.SceneSelect) },
-            )
-
-            AppRoute.SceneSelect -> SceneSelectRoute(
-                onSceneSelected = { navigate(AppRoute.MaterialImport) },
+                onFlowStarted = { scene -> navigate(firstRouteForScene(scene)) },
             )
 
             AppRoute.MaterialImport -> MaterialImportRoute(
-                onContinue = { navigate(AppRoute.MaterialReview) },
+                onContinue = { navigate(routeAfterMaterialImport()) },
             )
 
             AppRoute.MaterialReview -> MaterialReviewRoute(
                 onContinue = {
-                    navigate(AppRoute.Interview)
+                    navigate(routeAfterMaterialReview())
                 },
             )
 
             AppRoute.Interview -> InterviewRoute(
-                onContinue = { navigate(AppRoute.StyleSelect) },
+                onContinue = { navigate(routeAfterInterview()) },
             )
 
             AppRoute.StyleSelect -> StyleSelectRoute(
-                onContinue = { navigate(AppRoute.StoryDraft) },
+                onContinue = { navigate(routeAfterStyleSelect()) },
             )
 
             AppRoute.StoryDraft -> StoryDraftRoute(
-                onContinue = { navigate(AppRoute.StoryGenerating) },
+                onContinue = { navigate(routeAfterStoryDraft()) },
             )
 
             AppRoute.StoryGenerating -> StoryGeneratingRoute(

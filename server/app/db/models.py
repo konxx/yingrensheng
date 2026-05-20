@@ -155,6 +155,24 @@ class WorkModel(Base):
     video_url: Mapped[str] = mapped_column(Text, default="")
 
 
+class WorkAssetModel(Base):
+    __tablename__ = "work_assets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    asset_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    work_id: Mapped[str] = mapped_column(String(64), index=True)
+    project_id: Mapped[str] = mapped_column(String(64), index=True)
+    output_kind: Mapped[str] = mapped_column(String(64), index=True)
+    asset_type: Mapped[str] = mapped_column(String(64), index=True)
+    order_index: Mapped[int] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(String(255))
+    summary: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text, default="")
+    text_content: Mapped[str] = mapped_column(Text, default="")
+    metadata_json: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[str] = mapped_column(String(64))
+
+
 class OrderModel(Base):
     __tablename__ = "orders"
 

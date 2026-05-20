@@ -39,4 +39,11 @@ object YrsApiConfig {
         val normalizedPath = if (path.startsWith("/")) path else "/$path"
         return BackendOrigin.trimEnd('/') + normalizedPath
     }
+
+    fun assetUrl(value: String): String {
+        if (value.isBlank()) return ""
+        if (value.startsWith("http://") || value.startsWith("https://")) return value
+        if (value.startsWith("file://")) return value
+        return asset(value)
+    }
 }

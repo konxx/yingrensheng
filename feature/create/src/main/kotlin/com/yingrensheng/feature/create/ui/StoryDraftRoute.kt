@@ -16,6 +16,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
+import com.yingrensheng.core.model.creation.CreationOutputKind
+import com.yingrensheng.core.model.creation.outputKind
 import com.yingrensheng.core.ui.component.InfoPill
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
@@ -31,10 +33,11 @@ fun StoryDraftRoute(
     val scope = rememberCoroutineScope()
     var generating by remember { mutableStateOf(false) }
     val draft = session.storyDraft
+    val outputKind = session.outputKind()
 
     YrsScaffold(
-        title = "确认第一版创作稿",
-        subtitle = "先生成角色设定、小说主线和改编方向，再进入漫画/短视频分镜。",
+        title = outputKind.draftTitle(),
+        subtitle = outputKind.draftSubtitle(),
     ) {
         if (draft == null) {
             if (generating) {
@@ -79,10 +82,37 @@ fun StoryDraftRoute(
                 }
             }
             YrsPrimaryButton(
-                text = "进入分镜生成",
+                text = outputKind.draftContinueText(),
                 onClick = onContinue,
             )
         }
+    }
+}
+
+private fun CreationOutputKind.draftTitle(): String {
+    return when (this) {
+        CreationOutputKind.CHARACTER_STORY -> "确认角色故事草稿"
+        CreationOutputKind.STORY_TEXT -> "确认小说第一稿"
+        CreationOutputKind.COMIC_STORYBOARD -> "确认漫画改编草稿"
+        CreationOutputKind.SHORT_VIDEO -> "确认短视频脚本草稿"
+    }
+}
+
+private fun CreationOutputKind.draftSubtitle(): String {
+    return when (this) {
+        CreationOutputKind.CHARACTER_STORY -> "先确认角色身份、关系和第一幕剧情，再整理角色故事包。"
+        CreationOutputKind.STORY_TEXT -> "先确认小说主线和正文方向，再整理章节结构。"
+        CreationOutputKind.COMIC_STORYBOARD -> "先确认漫画改编方向，再拆成格子画面和对白。"
+        CreationOutputKind.SHORT_VIDEO -> "先确认故事钩子和脚本方向，再拆镜头并生成视频预览。"
+    }
+}
+
+private fun CreationOutputKind.draftContinueText(): String {
+    return when (this) {
+        CreationOutputKind.CHARACTER_STORY -> "整理角色故事包"
+        CreationOutputKind.STORY_TEXT -> "生成章节结构"
+        CreationOutputKind.COMIC_STORYBOARD -> "拆成漫画分格"
+        CreationOutputKind.SHORT_VIDEO -> "生成视频分镜"
     }
 }
 
