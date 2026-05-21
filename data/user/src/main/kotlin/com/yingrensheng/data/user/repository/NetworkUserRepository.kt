@@ -32,21 +32,23 @@ class NetworkUserRepository(
     override fun session(): StateFlow<UserSession> = sessionState.asStateFlow()
 
     override fun isBackendReachable(): Boolean {
-        return runCatching {
-            println("YrsBackend checking ${YrsApiConfig.HealthUrl}")
-            val connection = (URL(YrsApiConfig.HealthUrl).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = 2_000
-                readTimeout = 2_000
+        YrsApiConfig.BackendOriginCandidates.forEach { origin ->
+            val reachable = runCatching {
+                val connection = (URL(YrsApiConfig.healthUrl(origin)).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 2_000
+                    readTimeout = 2_000
+                }
+                val ok = connection.responseCode in 200..299
+                connection.disconnect()
+                ok
+            }.getOrDefault(false)
+            if (reachable) {
+                YrsApiConfig.configureBackendOrigin(origin)
+                return true
             }
-            val ok = connection.responseCode in 200..299
-            println("YrsBackend health ${YrsApiConfig.HealthUrl} -> ${connection.responseCode}")
-            connection.disconnect()
-            ok
-        }.getOrElse { throwable ->
-            println("YrsBackend health check failed for ${YrsApiConfig.HealthUrl}: ${throwable.message}")
-            false
         }
+        return false
     }
 
     override fun acceptAgreement() {

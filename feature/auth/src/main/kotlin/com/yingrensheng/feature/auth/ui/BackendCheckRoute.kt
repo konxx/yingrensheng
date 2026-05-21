@@ -8,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
-import com.yingrensheng.core.network.YrsApiConfig
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 
 @Composable
@@ -18,24 +17,24 @@ fun BackendCheckRoute(
     onContinue: () -> Unit,
 ) {
     YrsScaffold(
-        title = "启动先确认后端可用",
-        subtitle = "这版 app 会优先连本地后端，只有后端在线后才继续进入登录注册。",
+        title = "正在连接映人生服务",
+        subtitle = "请保持网络可用，连接成功后即可继续登录和创作。",
     ) {
         YrsSurfaceCard {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = when (backendReady) {
-                        null -> "正在检测后端连接"
-                        true -> "后端连接正常"
-                        false -> "后端暂时不可达"
+                        null -> "正在连接服务"
+                        true -> "服务连接正常"
+                        false -> "暂时无法连接服务"
                     },
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
                     text = when (backendReady) {
-                        null -> "正在尝试连接 `${YrsApiConfig.BackendOrigin}`。USB 真机请先执行 `adb reverse tcp:3000 tcp:3000`。"
-                        true -> "已确认 `${YrsApiConfig.BackendOrigin}` 可用，可以继续进入账号体系。"
-                        false -> "当前检测地址：`${YrsApiConfig.BackendOrigin}`。模拟器请使用 `http://10.0.2.2:3000` 打包；USB 真机请执行 `adb reverse tcp:3000 tcp:3000`。"
+                        null -> "正在为你准备创作环境，请稍候。"
+                        true -> "连接已恢复，可以继续进入账号页面。"
+                        false -> "当前网络或服务暂时不可用，请稍后重试。"
                     },
                 )
             }
@@ -43,7 +42,7 @@ fun BackendCheckRoute(
         if (backendReady == true) {
             YrsPrimaryButton(text = "继续", onClick = onContinue)
         } else if (backendReady == false) {
-            YrsPrimaryButton(text = "重新检测", onClick = onRetry)
+            YrsPrimaryButton(text = "重新连接", onClick = onRetry)
         }
     }
 }

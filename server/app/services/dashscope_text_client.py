@@ -37,13 +37,12 @@ class DashScopeTextClient:
             "如果是连环漫画，正文要服务于分格画面和对白；如果是短视频，正文要服务于镜头、旁白和首帧。"
             "如果是小说或角色故事，不要写成视频成片方案。"
         )
-        try:
-            data = self.provider.chat_json(system_prompt, user_prompt, fallback=fallback)
-        except Exception:
-            data = fallback
+        data = self.provider.chat_json(system_prompt, user_prompt)
         if not isinstance(data, dict):
-            data = fallback
+            raise ValueError("DashScope story draft response must be a JSON object")
         body = str(data.get("body", fallback["body"]))
+        if not body.strip():
+            raise ValueError("DashScope story draft body is empty")
         if "AI 导演补齐设定：" in theme_line and "AI 导演补齐设定：" not in body:
             body = f"{body}\n\n已记录的 AI 导演补齐设定：\n{_extract_director_notes(theme_line)}"
         return {
@@ -67,6 +66,15 @@ class DashScopeTextClient:
             "数组每项必须包含 title, summary, subtitle_line, duration_label 四个字段。"
             f"请严格返回 {board_count} 项。"
         )
+        if scene_id.startswith("scene_outline"):
+            system_prompt = (
+                "你是映人生的小说主笔。请只返回 JSON 数组，不要输出代码块。"
+                "数组每项必须包含 title, summary, subtitle_line, duration_label 四个字段。"
+                "title 是章节标题，summary 是本章剧情梗概，subtitle_line 必须是可直接阅读的完整章节正文，"
+                "每章正文不少于 500 个中文字符，要有人物动作、对白、场景细节、冲突推进和章末钩子，"
+                "不要把 subtitle_line 写成“章节作用”“写作提示”或分镜说明。"
+                f"请严格返回 {board_count} 项。"
+            )
         user_prompt = (
             f"分镜目标：{board_goal}\n"
             f"场景：{scene_title}\n"
@@ -76,29 +84,59 @@ class DashScopeTextClient:
             f"结尾：{story_draft['closing']}\n"
             "请按当前目标生成，不要把连环漫画写成视频镜头，也不要把小说结构写成视频导出方案。"
         )
-        try:
-            data = self.provider.chat_json(system_prompt, user_prompt, fallback=fallback)
-        except Exception:
-            data = fallback
+        if scene_id.startswith("scene_outline"):
+            user_prompt += (
+                "\n当前是小说正文生成流程，不是分镜。请产出真实章节正文。"
+                "每章要能单独阅读，章节之间要连续推进，结尾留下情绪余味或下一章悬念。"
+            )
+        data = self.provider.chat_json(system_prompt, user_prompt)
         if not isinstance(data, list):
-            data = fallback
+            raise ValueError("DashScope storyboard response must be a JSON array")
         items = data[:board_count]
         if len(items) < board_count:
-            items = items + fallback[len(items):board_count]
+            raise ValueError(f"DashScope storyboard response returned {len(items)} items, expected {board_count}")
         normalized = []
         for index, item in enumerate(items):
             if not isinstance(item, dict):
-                item = fallback[min(index, len(fallback) - 1)]
+                raise ValueError(f"DashScope storyboard item {index + 1} must be a JSON object")
+            subtitle_line = item.get("subtitle_line", item.get("subtitleLine"))
+            if scene_id.startswith("scene_outline"):
+                _validate_chapter_body(
+                    chapter_index=index,
+                    title=str(item.get("title", "")),
+                    body=str(subtitle_line or ""),
+                )
             normalized.append(
                 {
                     "section_id": f"section_gen_{index + 1:03d}",
-                    "title": item.get("title", fallback[index]["title"]),
-                    "summary": item.get("summary", fallback[index]["summary"]),
-                    "subtitle_line": item.get("subtitle_line", item.get("subtitleLine", fallback[index]["subtitle_line"])),
-                    "duration_label": item.get("duration_label", item.get("durationLabel", fallback[index]["duration_label"])),
+                    "title": _required_text(item, "title", index),
+                    "summary": _required_text(item, "summary", index),
+                    "subtitle_line": _required_text(item, "subtitle_line", index, alias="subtitleLine"),
+                    "duration_label": _required_text(item, "duration_label", index, alias="durationLabel"),
                 },
             )
         return normalized
+
+
+def _required_text(item: dict[str, Any], key: str, index: int, alias: str | None = None) -> str:
+    value = item.get(key)
+    if value is None and alias is not None:
+        value = item.get(alias)
+    text = str(value or "").strip()
+    if not text:
+        raise ValueError(f"DashScope storyboard item {index + 1} missing {key}")
+    return text
+
+
+def _validate_chapter_body(chapter_index: int, title: str, body: str) -> None:
+    body_text = body.strip()
+    forbidden_markers = ["章节作用", "剧情作用", "写作提示", "分镜", "镜头", "设定项"]
+    if len(body_text) < 260:
+        raise ValueError(f"DashScope chapter {chapter_index + 1} is too short to be novel正文")
+    if any(marker in body_text[:120] for marker in forbidden_markers):
+        raise ValueError(f"DashScope chapter {chapter_index + 1} looks like an outline, not novel正文")
+    if title.strip() and body_text == title.strip():
+        raise ValueError(f"DashScope chapter {chapter_index + 1} body duplicates title")
 
 
 def _fallback_story_draft(
@@ -121,7 +159,7 @@ def _fallback_story_draft(
         closing = "下一步会拆短视频镜头，再调用 DashScope 首帧图和图生视频预览。"
         body = f"根据“{theme_line}”，系统将前 5 秒钩子、镜头推进、旁白和字幕节奏整理成 {style_label} 方向的短视频脚本。"
     elif scene_id == "scene_outline_history":
-        closing = "下一步整理章节梗概、人物关系和历史融合点，交付小说创作包。"
+        closing = "下一步生成分章正文、人物关系和历史融合点，交付小说创作包。"
         body = f"根据“{theme_line}”，系统将朝代质感、名著参照、人物欲望和核心冲突整理成 {style_label} 方向的历史融合小说。"
     elif scene_id == "scene_outline_original":
         closing = "这一版会保留原创世界观、人物欲望和结尾余味，直接进入小说成果确认。"
@@ -231,37 +269,53 @@ def _fallback_storyboard(scene_title: str, story_draft: dict[str, str], scene_id
             },
         ]
     if scene_id.startswith("scene_outline"):
-        return [
+        summaries = [
             {
                 "title": "第一章：世界入口",
                 "summary": f"建立 {scene_title} 的时代规则、主角处境和第一处异常，让读者知道故事为什么现在开始。",
-                "subtitle_line": "章节作用：开篇钩子与世界观落点",
-                "duration_label": "章节梗概",
+                "subtitle_line": "",
+                "duration_label": "小说正文",
             },
             {
                 "title": "第二章：人物关系",
                 "summary": "展开主角目标、同盟、阻力和关键人物的利益关系，压出后续冲突。",
-                "subtitle_line": "章节作用：人物小传与关系网",
-                "duration_label": "章节梗概",
+                "subtitle_line": "",
+                "duration_label": "小说正文",
             },
             {
                 "title": "第三章：第一次选择",
                 "summary": "安排主角主动改变局面，付出代价或暴露弱点，让故事脱离静态设定。",
-                "subtitle_line": "章节作用：行动线启动",
-                "duration_label": "章节梗概",
+                "subtitle_line": "",
+                "duration_label": "小说正文",
             },
             {
                 "title": "第四章：危机反扑",
                 "summary": "让旧规则、对手或命运反扑，推动主角发现更深层秘密。",
-                "subtitle_line": "章节作用：中段升级",
-                "duration_label": "章节梗概",
+                "subtitle_line": "",
+                "duration_label": "小说正文",
             },
             {
                 "title": "第五章：余味结尾",
                 "summary": "完成本篇小闭环，同时留下下一篇可继续展开的人物承诺或悬念。",
-                "subtitle_line": "章节作用：结局余韵与续写钩子",
-                "duration_label": "章节梗概",
+                "subtitle_line": "",
+                "duration_label": "小说正文",
             },
+        ]
+        return [
+            {
+                **item,
+                "subtitle_line": _fallback_chapter_body(
+                    scene_title=scene_title,
+                    story_draft=story_draft,
+                    chapter_title=item["title"],
+                    chapter_summary=item["summary"],
+                    chapter_index=index,
+                    chapter_count=len(summaries),
+                    scene_id=scene_id,
+                ),
+                "duration_label": "小说正文",
+            }
+            for index, item in enumerate(summaries)
         ]
     if scene_id.startswith("scene_character"):
         return [
@@ -327,8 +381,8 @@ def _storyboard_goal(scene_id: str) -> str:
     return {
         "scene_media_comic": "生成 8 格连环漫画分镜，每格包含画面、人物动作、对白或旁白框、页内位置",
         "scene_media_short_video": "生成 4 段短视频镜头结构，每段包含镜头、旁白、字幕和时长",
-        "scene_outline_history": "生成 5 个小说章节梗概，突出历史融合点、人物冲突和结尾余味",
-        "scene_outline_original": "生成 5 个原创小说章节梗概，突出世界规则、人物欲望和反转",
+        "scene_outline_history": "生成 5 章可直接阅读的历史融合小说正文，突出历史融合点、人物冲突和结尾余味",
+        "scene_outline_original": "生成 5 章可直接阅读的原创小说正文，突出世界规则、人物欲望和反转",
         "scene_character_xiyou": "生成角色身份、关系、第一幕剧情和后续扩展，不写成视频镜头",
         "scene_character_honglou": "生成红楼角色身份、关系网、第一幕剧情和后续扩展，不写成视频镜头",
     }.get(scene_id, "生成结构化创作资料")
@@ -344,3 +398,35 @@ def _storyboard_count(scene_id: str) -> int:
     if scene_id.startswith("scene_character"):
         return 4
     return 3
+
+
+def _fallback_chapter_body(
+    scene_title: str,
+    story_draft: dict[str, str],
+    chapter_title: str,
+    chapter_summary: str,
+    chapter_index: int,
+    chapter_count: int,
+    scene_id: str,
+) -> str:
+    title = story_draft.get("title", scene_title)
+    opening = story_draft.get("opening", "")
+    body = story_draft.get("body", "")
+    closing = story_draft.get("closing", "")
+    protagonist = "他" if scene_id == "scene_outline_history" else "主角"
+    setting_hint = "旧史与传闻交叠的城中" if scene_id == "scene_outline_history" else "自成规则的新世界里"
+    conflict_hint = "旧秩序" if scene_id == "scene_outline_history" else "新的规则"
+    chapter_no = chapter_index + 1
+    next_hook = "门外忽然传来更急的脚步声。" if chapter_no < chapter_count else "灯火一盏盏亮起，像是在等下一卷书被翻开。"
+    return (
+        f"{chapter_title}\n\n"
+        f"{setting_hint}，{protagonist}第一次意识到，自己面对的并不是一段可以随手改写的提纲，而是一群正在呼吸的人。"
+        f"{opening}这句话像一枚钉子，把他钉在当下。他抬头看见檐角的雨痕、门槛上的尘土，也看见旁人眼里来不及藏起的猜疑。\n\n"
+        f"这一章的核心，是{chapter_summary}。{body}可是当事情真正落到他身上时，一切都比设想更沉。"
+        f"有人问他为何知道这些旧事，有人劝他少管闲事，也有人在沉默里递来一盏冷茶。"
+        f"{protagonist}没有立刻回答，只把袖口攥紧，听见自己的心跳同远处更鼓一下一下撞在一起。\n\n"
+        f"他试着按原先的判断往前走，却发现{conflict_hint}并不会因为一句解释而让路。"
+        f"街巷、庭院、书案和灯影都在逼他做选择：是保全自己，还是替一个本该沉下去的人说一句话。"
+        f"他终于开口时，声音并不高，却让屋中所有人的目光都停了下来。那一刻，他知道故事已经偏离了原来的河道。\n\n"
+        f"{closing}这不是结局，更像一道压在纸背后的墨痕。{next_hook}"
+    )

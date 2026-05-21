@@ -101,6 +101,10 @@ def get_preview(project_id: str) -> ApiResponse[PreviewAssetResponse]:
 
 def _project_http_exception(exc: ValueError) -> HTTPException:
     code = str(exc)
+    if code.startswith("AI_TEXT_GENERATION_FAILED:"):
+        return HTTPException(status_code=502, detail=code)
+    if code.startswith("AI_STORYBOARD_GENERATION_FAILED:"):
+        return HTTPException(status_code=502, detail=code)
     status_code = {
         "PROJECT_NOT_FOUND": 404,
         "PREVIEW_PREREQUISITES_MISSING": 409,

@@ -5,14 +5,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.common.util.Formatters
+import com.yingrensheng.core.designsystem.component.YrsMetricCard
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
 import com.yingrensheng.core.ui.component.InfoPill
@@ -37,9 +41,22 @@ fun HomeRoute(
         subtitle = "把自拍、大纲或小说变成角色故事、连环漫画和短视频。",
     ) {
         YrsSurfaceCard {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text(text = "今天想进入哪本故事？", style = MaterialTheme.typography.titleLarge)
-                Text(text = "上传一张照片可以做角色穿越，输入一段大纲可以生成小说，粘贴小说可以继续拆成漫画或短视频。")
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    text = "今天想进入哪本故事？",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "上传照片、大纲或小说正文，按不同创作目标进入专属流程。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    InfoPill(text = "角色架空")
+                    InfoPill(text = "小说生成")
+                    InfoPill(text = "漫画分镜")
+                    InfoPill(text = "短视频")
+                }
                 YrsPrimaryButton(
                     text = "开始创作",
                     modifier = Modifier.fillMaxWidth(),
@@ -53,13 +70,30 @@ fun HomeRoute(
             YrsSurfaceCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(text = project.title, style = MaterialTheme.typography.titleLarge)
-                    Text(text = "${project.sceneType} · ${project.currentStep}")
+                    Text(
+                        text = "${project.sceneType} · ${project.currentStep}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         InfoPill(text = "${project.materialCount} 份素材")
                         InfoPill(text = project.moodLabel)
                         InfoPill(text = Formatters.formatShortTime(project.updatedAt))
                     }
                 }
+            }
+        }
+
+        SectionHeader(title = "创作资产")
+        YrsSurfaceCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                YrsMetricCard(label = "项目", value = projects.size.toString())
+                YrsMetricCard(label = "最近进度", value = "${latestProject?.progress ?: 0}%")
+                YrsMetricCard(label = "素材", value = (latestProject?.materialCount ?: 0).toString())
             }
         }
 

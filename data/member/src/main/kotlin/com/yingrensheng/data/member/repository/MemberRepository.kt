@@ -18,7 +18,7 @@ class FakeMemberRepository : MemberRepository {
     override fun getMemberInfo(): MemberInfo {
         return MemberInfo(
             levelName = "Lite",
-            subtitle = "当前开发版默认账号从 Lite 会员开始，可继续升级到 Pro / Max。",
+            subtitle = "当前账号为 Lite 会员，可继续升级到 Pro / Max。",
             benefits = listOf("1080P 导出", "故事片时长延长", "高级配音"),
             highlightLabel = "剩余导出 3 次",
             activePlanPriceLabel = "连续包月 ¥49",

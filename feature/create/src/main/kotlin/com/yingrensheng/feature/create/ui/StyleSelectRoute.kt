@@ -7,9 +7,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
-import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
+import com.yingrensheng.core.designsystem.component.YrsSelectableCard
 import com.yingrensheng.core.model.creation.NarrativeStyle
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
@@ -21,25 +24,36 @@ fun StyleSelectRoute(
     val creationRepository = CreationRepositoryProvider.current
     val session by creationRepository.observeSession().collectAsState()
     val sceneId = session.selectedScene?.sceneId.orEmpty()
+    val styles = stylesForScene(sceneId, creationRepository.styles())
+    var selectedStyle by remember(sceneId) { mutableStateOf(styles.firstOrNull()) }
     YrsScaffold(
         title = styleTitle(sceneId),
         subtitle = styleSubtitle(sceneId),
     ) {
-        stylesForScene(sceneId, creationRepository.styles()).forEach { style ->
-            YrsSurfaceCard {
+        styles.forEach { style ->
+            YrsSelectableCard(
+                selected = selectedStyle?.styleId == style.styleId,
+                onClick = { selectedStyle = style },
+            ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(text = style.title, style = MaterialTheme.typography.titleLarge)
-                    Text(text = style.description)
-                    YrsPrimaryButton(
-                        text = "使用 ${style.title}",
-                        onClick = {
-                            creationRepository.selectStyle(style)
-                            onContinue()
-                        },
+                    Text(
+                        text = style.description,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
+        YrsPrimaryButton(
+            text = selectedStyle?.let { "使用 ${it.title}" } ?: "选择叙事风格",
+            enabled = selectedStyle != null,
+            onClick = {
+                selectedStyle?.let {
+                    creationRepository.selectStyle(it)
+                    onContinue()
+                }
+            },
+        )
     }
 }
 

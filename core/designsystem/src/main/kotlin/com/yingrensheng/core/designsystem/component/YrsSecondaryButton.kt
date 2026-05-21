@@ -1,10 +1,10 @@
 package com.yingrensheng.core.designsystem.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -13,24 +13,18 @@ import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.theme.LocalYrsRadius
 
 @Composable
-fun YrsPrimaryButton(
+fun YrsSecondaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    Button(
+    OutlinedButton(
         modifier = modifier.fillMaxWidth(),
         onClick = onClick,
         enabled = enabled,
         shape = LocalYrsRadius.current.control,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
-            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f),
-        ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
     ) {
         Text(

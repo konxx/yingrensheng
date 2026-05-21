@@ -49,15 +49,18 @@ class DashScopeAiProvider:
             },
         }
 
-    def chat_json(self, system_prompt: str, user_prompt: str, fallback: Any) -> Any:
-        if not self.has_text_credentials or not settings.ai_text_sync_enabled:
-            return fallback
+    def chat_json(self, system_prompt: str, user_prompt: str, fallback: Any | None = None) -> Any:
+        _ = fallback
+        if not self.has_text_credentials:
+            raise RuntimeError("DashScope text credentials are not configured")
+        if not settings.ai_text_sync_enabled:
+            raise RuntimeError("DashScope text generation is disabled by AI_TEXT_SYNC_ENABLED=false")
         if _requires_multimodal_text(self.text_model):
             return self._multimodal_chat_json(system_prompt, user_prompt)
         try:
             dashscope, generation_cls = _dashscope_generation()
-        except ImportError:
-            return fallback
+        except ImportError as exc:
+            raise RuntimeError("DashScope SDK is not installed") from exc
 
         dashscope.base_http_api_url = self.base_http_api_url
         response = generation_cls.call(

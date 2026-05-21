@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     dashscope_base_http_api_url: str = Field(default="https://dashscope.aliyuncs.com/api/v1", alias="DASHSCOPE_BASE_HTTP_API_URL")
     ai_text_api_key: str = Field(default="", alias="AI_TEXT_API_KEY")
     ai_text_model: str = Field(default="qwen3.6-plus", alias="AI_TEXT_MODEL")
-    ai_text_sync_enabled: bool = Field(default=False, alias="AI_TEXT_SYNC_ENABLED")
+    ai_text_sync_enabled: bool = Field(default=True, alias="AI_TEXT_SYNC_ENABLED")
     ai_image_api_key: str = Field(default="", alias="AI_IMAGE_API_KEY")
     ai_image_model: str = Field(default="qwen-image-2.0-pro", alias="AI_IMAGE_MODEL")
     ai_video_api_key: str = Field(default="", alias="AI_VIDEO_API_KEY")

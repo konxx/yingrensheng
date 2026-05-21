@@ -43,8 +43,6 @@ import com.yingrensheng.core.model.creation.StoryboardSection
 import com.yingrensheng.core.model.creation.outputKind
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
-import com.yingrensheng.core.designsystem.theme.WeUiBackgroundMuted
-import com.yingrensheng.core.designsystem.theme.WeUiTextSecondary
 import com.yingrensheng.core.ui.component.InfoPill
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
@@ -89,7 +87,7 @@ private fun ShortVideoPreview(preview: PreviewAsset) {
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(WeUiBackgroundMuted),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
                 if (preview.videoUrl.isNotBlank()) {
@@ -106,7 +104,7 @@ private fun ShortVideoPreview(preview: PreviewAsset) {
             Text(text = preview.subtitleSummary)
             PreviewPills(preview = preview, outputKind = CreationOutputKind.SHORT_VIDEO)
             AssetUrlLine(label = "封面资源", value = preview.coverUrl)
-            AssetUrlLine(label = "视频资源", value = preview.videoUrl.ifBlank { "DashScope 视频仍在生成或暂未返回地址" })
+            AssetUrlLine(label = "视频资源", value = preview.videoUrl.ifBlank { "视频仍在生成或暂未生成播放地址" })
         }
     }
 }
@@ -148,7 +146,7 @@ private fun StoryTextResultPreview(
             session.storyDraft?.let { draft ->
                 Text(text = draft.opening, style = MaterialTheme.typography.titleMedium)
                 Text(text = draft.body)
-                Text(text = draft.closing, color = WeUiTextSecondary)
+                Text(text = draft.closing, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             session.storyboard.forEachIndexed { index, section ->
                 ResultSectionLine(prefix = "第 ${index + 1} 章", section = section)
@@ -204,7 +202,7 @@ private fun ComicPreviewPanel(
         modifier = Modifier
             .widthIn(min = 138.dp)
             .fillMaxWidth()
-            .background(WeUiBackgroundMuted, RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -215,10 +213,10 @@ private fun ComicPreviewPanel(
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text = "格 ${index + 1}", color = WeUiTextSecondary)
+            Text(text = "格 ${index + 1}", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(text = section.title, style = MaterialTheme.typography.titleSmall)
-        Text(text = section.subtitleLine, color = WeUiTextSecondary)
+        Text(text = section.subtitleLine, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -230,14 +228,14 @@ private fun ResultSectionLine(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(WeUiBackgroundMuted, RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         InfoPill(text = prefix)
         Text(text = section.title, style = MaterialTheme.typography.titleMedium)
         Text(text = section.summary)
-        Text(text = section.subtitleLine, color = WeUiTextSecondary)
+        Text(text = section.subtitleLine, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -249,7 +247,7 @@ private fun AssetUrlLine(
     SelectionContainer {
         Text(
             text = "$label：$value",
-            color = WeUiTextSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
     }
@@ -261,7 +259,7 @@ private fun com.yingrensheng.core.model.creation.CreationSession.localResultPrev
     return PreviewAsset(
         title = draft.title,
         subtitleSummary = when (kind) {
-            CreationOutputKind.STORY_TEXT -> "已生成小说创作稿和结构化剧情，可导出文本创作包。"
+            CreationOutputKind.STORY_TEXT -> "已生成小说创作稿和分章正文，可导出文本创作包。"
             CreationOutputKind.COMIC_STORYBOARD -> "已生成连环漫画分镜脚本，可导出漫画分镜包。"
             CreationOutputKind.CHARACTER_STORY -> "已生成角色故事设定和剧情分镜，可导出角色故事包。"
             CreationOutputKind.SHORT_VIDEO -> "短视频预览尚未生成，请返回分镜页重新生成预览。"
@@ -294,7 +292,7 @@ private fun CreationOutputKind.previewSubtitle(): String {
     return when (this) {
         CreationOutputKind.STORY_TEXT -> "这里展示可导出的小说创作稿，不触发视频生成。"
         CreationOutputKind.COMIC_STORYBOARD -> "这里展示可导出的连环漫画分镜脚本，不触发视频生成。"
-        CreationOutputKind.SHORT_VIDEO -> "这里展示后端生成的封面首帧和短视频预览。"
+        CreationOutputKind.SHORT_VIDEO -> "这里展示生成后的封面首帧和短视频预览。"
         CreationOutputKind.CHARACTER_STORY -> "这里展示角色设定、故事草稿和可继续扩展的创作包。"
     }
 }

@@ -29,7 +29,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
-import com.yingrensheng.core.designsystem.theme.WeUiBackgroundMuted
 import com.yingrensheng.core.model.material.MaterialItem
 import com.yingrensheng.core.model.material.MaterialType
 import com.yingrensheng.core.model.project.CreationMode
@@ -94,7 +93,7 @@ private fun MaterialPreview(material: MaterialItem) {
             .fillMaxWidth()
             .aspectRatio(16f / 10f)
             .clip(RoundedCornerShape(18.dp))
-            .background(WeUiBackgroundMuted),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         val imageBitmap = bitmap

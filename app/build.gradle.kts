@@ -5,7 +5,7 @@ plugins {
 }
 
 val yrsBackendOrigin = providers.gradleProperty("yrsBackendOrigin")
-    .orElse("http://127.0.0.1:3000")
+    .orElse("http://10.0.2.2:3000")
     .get()
     .trimEnd('/')
     .replace("\\", "\\\\")
@@ -54,6 +54,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.google.code.gson:gson:2.11.0")
     debugImplementation("androidx.compose.ui:ui-tooling")

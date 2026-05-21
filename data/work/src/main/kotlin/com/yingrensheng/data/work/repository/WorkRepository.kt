@@ -85,7 +85,7 @@ class FakeWorkRepository : WorkRepository {
                     assetType = "TEXT",
                     orderIndex = 0,
                     title = work.title,
-                    summary = "开发版本地成品包。",
+                    summary = "已整理完成的成品包。",
                     url = work.coverUrl,
                     textContent = "这里展示完整作品正文、设定或脚本。",
                 ),

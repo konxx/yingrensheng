@@ -44,3 +44,10 @@ server/server_test_upload.jpg
 Thumbs.db
 
 .mindfs/
+
+
+# 
+tmp/
+readme/
+output/
+scripts/

@@ -33,6 +33,7 @@ fun StoryDraftRoute(
     val scope = rememberCoroutineScope()
     var generating by remember { mutableStateOf(false) }
     val draft = session.storyDraft
+    val task = session.renderTask
     val outputKind = session.outputKind()
 
     YrsScaffold(
@@ -40,9 +41,12 @@ fun StoryDraftRoute(
         subtitle = outputKind.draftSubtitle(),
     ) {
         if (draft == null) {
-            if (generating) {
+            if (generating || task != null) {
                 YrsSurfaceCard {
-                    Text(text = "正在生成创作草稿，请稍候", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = if (generating) "正在生成创作草稿，请稍候" else task?.stage.orEmpty(),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                 }
             }
             YrsPrimaryButton(
@@ -82,6 +86,22 @@ fun StoryDraftRoute(
                 }
             }
             YrsPrimaryButton(
+                text = if (generating) "重新生成中" else "重新调用 AI 生成草稿",
+                enabled = !generating,
+                onClick = {
+                    if (!generating) {
+                        scope.launch {
+                            generating = true
+                            try {
+                                creationRepository.generateStoryDraft()
+                            } finally {
+                                generating = false
+                            }
+                        }
+                    }
+                },
+            )
+            YrsPrimaryButton(
                 text = outputKind.draftContinueText(),
                 onClick = onContinue,
             )
@@ -101,7 +121,7 @@ private fun CreationOutputKind.draftTitle(): String {
 private fun CreationOutputKind.draftSubtitle(): String {
     return when (this) {
         CreationOutputKind.CHARACTER_STORY -> "先确认角色身份、关系和第一幕剧情，再整理角色故事包。"
-        CreationOutputKind.STORY_TEXT -> "先确认小说主线和正文方向，再整理章节结构。"
+        CreationOutputKind.STORY_TEXT -> "先确认小说主线和正文方向，再生成可阅读的章节正文。"
         CreationOutputKind.COMIC_STORYBOARD -> "先确认漫画改编方向，再拆成格子画面和对白。"
         CreationOutputKind.SHORT_VIDEO -> "先确认故事钩子和脚本方向，再拆镜头并生成视频预览。"
     }
@@ -110,7 +130,7 @@ private fun CreationOutputKind.draftSubtitle(): String {
 private fun CreationOutputKind.draftContinueText(): String {
     return when (this) {
         CreationOutputKind.CHARACTER_STORY -> "整理角色故事包"
-        CreationOutputKind.STORY_TEXT -> "生成章节结构"
+        CreationOutputKind.STORY_TEXT -> "生成章节正文"
         CreationOutputKind.COMIC_STORYBOARD -> "拆成漫画分格"
         CreationOutputKind.SHORT_VIDEO -> "生成视频分镜"
     }

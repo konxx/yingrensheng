@@ -30,9 +30,6 @@ import com.yingrensheng.core.model.creation.outputKind
 import com.yingrensheng.core.model.creation.requiresVideoPreview
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
-import com.yingrensheng.core.designsystem.theme.WeUiBackgroundMuted
-import com.yingrensheng.core.designsystem.theme.WeUiBorder
-import com.yingrensheng.core.designsystem.theme.WeUiTextSecondary
 import com.yingrensheng.core.ui.component.InfoPill
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.creation.repository.CreationRepositoryProvider
@@ -111,8 +108,8 @@ private fun ComicPanelCard(
         modifier = Modifier
             .widthIn(min = 148.dp)
             .fillMaxWidth()
-            .background(WeUiBackgroundMuted, RoundedCornerShape(12.dp))
-            .border(1.dp, WeUiBorder, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -121,14 +118,14 @@ private fun ComicPanelCard(
                 .fillMaxWidth()
                 .aspectRatio(if (index % 4 == 0 || index % 4 == 3) 2.1f else 1.15f)
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                .border(1.dp, WeUiBorder, RoundedCornerShape(8.dp)),
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text = "第 ${index + 1} 格", color = WeUiTextSecondary)
+            Text(text = "第 ${index + 1} 格", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(text = section.title, style = MaterialTheme.typography.titleMedium)
         Text(text = section.summary)
-        Text(text = section.subtitleLine, color = WeUiTextSecondary)
+        Text(text = section.subtitleLine, color = MaterialTheme.colorScheme.onSurfaceVariant)
         InfoPill(text = section.durationLabel)
     }
 }
@@ -143,7 +140,7 @@ private fun VideoShotCard(
             InfoPill(text = "镜头 ${index + 1}")
             Text(text = section.title, style = MaterialTheme.typography.titleLarge)
             Text(text = section.summary)
-            Text(text = section.subtitleLine, color = WeUiTextSecondary)
+            Text(text = section.subtitleLine, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(text = "时长 ${section.durationLabel}")
         }
     }
@@ -159,7 +156,7 @@ private fun NovelChapterCard(
             InfoPill(text = "章节 ${index + 1}")
             Text(text = section.title, style = MaterialTheme.typography.titleLarge)
             Text(text = section.summary)
-            Text(text = section.subtitleLine, color = WeUiTextSecondary)
+            Text(text = section.subtitleLine, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(text = section.durationLabel)
         }
     }
@@ -171,7 +168,7 @@ private fun CharacterStoryCard(section: StoryboardSection) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(text = section.title, style = MaterialTheme.typography.titleLarge)
             Text(text = section.summary)
-            Text(text = section.subtitleLine, color = WeUiTextSecondary)
+            Text(text = section.subtitleLine, color = MaterialTheme.colorScheme.onSurfaceVariant)
             InfoPill(text = section.durationLabel)
         }
     }
@@ -179,7 +176,7 @@ private fun CharacterStoryCard(section: StoryboardSection) {
 
 private fun CreationOutputKind.storyboardTitle(): String {
     return when (this) {
-        CreationOutputKind.STORY_TEXT -> "小说创作稿"
+        CreationOutputKind.STORY_TEXT -> "小说章节正文"
         CreationOutputKind.COMIC_STORYBOARD -> "连环漫画分镜"
         CreationOutputKind.SHORT_VIDEO -> "短视频分镜"
         CreationOutputKind.CHARACTER_STORY -> "角色故事分镜"
@@ -188,7 +185,7 @@ private fun CreationOutputKind.storyboardTitle(): String {
 
 private fun CreationOutputKind.storyboardSubtitle(): String {
     return when (this) {
-        CreationOutputKind.STORY_TEXT -> "这里整理小说主线、人物冲突和章节结构，不会进入视频生成流程。"
+        CreationOutputKind.STORY_TEXT -> "这里展示可阅读的分章正文，不会进入视频生成流程。"
         CreationOutputKind.COMIC_STORYBOARD -> "这里输出漫画格画面、字幕和剧情节奏，不会自动跳到视频生成。"
         CreationOutputKind.SHORT_VIDEO -> "这里承接镜头、旁白、字幕和画面提示，下一步生成短视频预览。"
         CreationOutputKind.CHARACTER_STORY -> "这里整理角色身份、剧情钩子和后续可扩展的漫画/短视频方向。"

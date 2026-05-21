@@ -27,9 +27,9 @@ fun ExportPlanRoute(
     val outputKind = creationRepository.observeSession().value.outputKind()
     val plans = if (isAdmin) listOf(adminExportPlan(outputKind)) else creationRepository.exportPlans(outputKind)
     YrsScaffold(
-        title = if (isAdmin) "Admin 权益导出" else outputKind.exportTitle(),
+        title = if (isAdmin) "尊享权益导出" else outputKind.exportTitle(),
         subtitle = if (isAdmin) {
-            "系统管理员已开放全部导出权益，不消耗次数，也不需要选择单次或会员付费方案。"
+            "当前账号已享有完整导出权益，不消耗次数，也不需要选择单次或会员付费方案。"
         } else {
             outputKind.exportSubtitle()
         },
@@ -45,7 +45,7 @@ fun ExportPlanRoute(
                         }
                     }
                     YrsPrimaryButton(
-                        text = if (isAdmin) "使用 Admin 权益导出" else "选择 ${plan.title}",
+                        text = if (isAdmin) "使用尊享权益导出" else "选择 ${plan.title}",
                         onClick = {
                             creationRepository.selectExportPlan(plan)
                             onContinue()
@@ -59,7 +59,7 @@ fun ExportPlanRoute(
 
 private fun adminExportPlan(outputKind: CreationOutputKind): ExportPlan = ExportPlan(
     planId = "plan_admin",
-    title = "系统管理员权益导出",
+    title = "尊享权益导出",
     priceLabel = "已豁免",
     benefits = when (outputKind) {
         CreationOutputKind.STORY_TEXT -> listOf("小说文本包", "不消耗导出额度", "无需支付")

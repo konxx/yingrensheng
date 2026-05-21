@@ -199,9 +199,16 @@ class NetworkCreationRepository(
                         estimatedRemainingSeconds = task.estimatedRemainingSeconds,
                     ),
                 )
-            }.onFailure {
-                fallback.generateStoryDraft()
-                sessionState.value = fallback.observeSession().value
+            }.onFailure { throwable ->
+                sessionState.value = sessionState.value.copy(
+                    storyDraft = null,
+                    renderTask = RenderTask(
+                        taskId = "task_story_error",
+                        stage = "小说生成失败：${throwable.toAiTextErrorMessage()}",
+                        progress = 0,
+                        estimatedRemainingSeconds = 0,
+                    ),
+                )
             }
         }
     }
@@ -217,7 +224,18 @@ class NetworkCreationRepository(
                     body = emptyMap<String, String>(),
                     type = taskType,
                 )
-                val task = taskEnvelope.requireData()
+                val submittedTask = taskEnvelope.requireData()
+                sessionState.value = sessionState.value.copy(
+                    renderTask = submittedTask.toRenderTask(),
+                )
+                val task = if (submittedTask.status == "RUNNING") {
+                    pollTaskUntilFinished(submittedTask.taskId)
+                } else {
+                    submittedTask
+                }
+                if (task.status != "SUCCEEDED") {
+                    throw IllegalStateException(task.errorMessage() ?: "章节生成失败")
+                }
 
                 val sectionType = object : TypeToken<NetworkApiResponse<List<StoryboardPayload>>>() {}.type
                 val sectionEnvelope: NetworkApiResponse<List<StoryboardPayload>> = apiClient.get(
@@ -263,9 +281,16 @@ class NetworkCreationRepository(
                         )
                     }
                 }
-            }.onFailure {
-                fallback.buildStoryboard()
-                sessionState.value = fallback.observeSession().value
+            }.onFailure { throwable ->
+                sessionState.value = sessionState.value.copy(
+                    storyboard = emptyList(),
+                    renderTask = RenderTask(
+                        taskId = "task_storyboard_error",
+                        stage = "章节生成失败：${throwable.toAiTextErrorMessage()}",
+                        progress = 0,
+                        estimatedRemainingSeconds = 0,
+                    ),
+                )
             }
         }
     }
@@ -388,7 +413,7 @@ class NetworkCreationRepository(
     private suspend fun pollTaskUntilFinished(taskId: String): TaskPayload {
         val taskType = object : TypeToken<NetworkApiResponse<TaskPayload>>() {}.type
         var latest: TaskPayload? = null
-        repeat(40) {
+        repeat(80) {
             val envelope: NetworkApiResponse<TaskPayload> = apiClient.get(
                 "/tasks/$taskId",
                 taskType,
@@ -401,7 +426,7 @@ class NetworkCreationRepository(
             }
             delay(3_000)
         }
-        return latest ?: throw IllegalStateException("预览任务查询超时")
+        return latest ?: throw IllegalStateException("生成任务查询超时")
     }
 }
 
@@ -470,12 +495,18 @@ private fun TaskPayload.errorMessage(): String? {
 
 private fun String.toTaskStageLabel(): String {
     return when (this) {
-        "DASHSCOPE_VIDEO_RUNNING" -> "DashScope 正在生成视频预览"
-        "DASHSCOPE_VIDEO_SUCCEEDED" -> "DashScope 视频预览已生成"
-        "DASHSCOPE_IMAGE_FAILED" -> "DashScope 首帧图生成失败"
-        "DASHSCOPE_VIDEO_SUBMIT_FAILED" -> "DashScope 视频任务提交失败"
-        "DASHSCOPE_VIDEO_FAILED" -> "DashScope 视频生成失败"
-        "DASHSCOPE_PREVIEW_FAILED" -> "DashScope 预览生成失败"
+        "STORYBOARD_QUEUED" -> "章节生成已提交"
+        "STORYBOARD_DRAFT_READY" -> "正在整理创作草稿"
+        "STORYBOARD_AI_WRITING" -> "千问正在创作章节正文"
+        "STORYBOARD_ASSEMBLING" -> "正在整理章节内容"
+        "STORYBOARD_SUCCEEDED" -> "章节正文已生成"
+        "STORYBOARD_FAILED" -> "章节生成失败"
+        "DASHSCOPE_VIDEO_RUNNING" -> "正在生成视频预览"
+        "DASHSCOPE_VIDEO_SUCCEEDED" -> "视频预览已生成"
+        "DASHSCOPE_IMAGE_FAILED" -> "封面首帧生成失败"
+        "DASHSCOPE_VIDEO_SUBMIT_FAILED" -> "视频生成任务提交失败"
+        "DASHSCOPE_VIDEO_FAILED" -> "视频生成失败"
+        "DASHSCOPE_PREVIEW_FAILED" -> "预览生成失败"
         else -> this
     }
 }
@@ -488,22 +519,47 @@ private fun Throwable.toPreviewErrorMessage(): String {
         "DASHSCOPE_VIDEO_FAILED" in raw -> "视频生成失败"
         "HTTP 409" in raw -> "预览前置资源不完整"
         raw.isNotBlank() -> raw
-        else -> "未知网络或后端异常"
+        else -> "网络或服务暂时异常"
+    }
+}
+
+private fun Throwable.toAiTextErrorMessage(): String {
+    val raw = message.orEmpty()
+    return when {
+        "AI_TEXT_GENERATION_FAILED" in raw -> raw.substringAfter("AI_TEXT_GENERATION_FAILED:").trimErrorBody()
+        "AI_STORYBOARD_GENERATION_FAILED" in raw -> raw.substringAfter("AI_STORYBOARD_GENERATION_FAILED:").trimErrorBody()
+        "timeout" in raw.lowercase() -> "内容生成仍在处理中，请稍后重试或检查任务状态"
+        "DashScope SDK is not installed" in raw -> "内容生成服务暂时不可用"
+        "DashScope text credentials are not configured" in raw -> "内容生成服务暂时不可用"
+        "AI_TEXT_SYNC_ENABLED=false" in raw -> "内容生成服务暂时不可用"
+        "HTTP 502" in raw -> raw.trimErrorBody()
+        raw.isNotBlank() -> raw.trimErrorBody()
+        else -> "网络或服务暂时异常"
     }
 }
 
 private fun Throwable.toExportErrorMessage(): String {
     val raw = message.orEmpty()
     return when {
-        "ADMIN_EXPORT_REQUIRES_ADMIN" in raw -> "当前登录态不是系统管理员，请重新登录 Admin 账号"
-        "PROJECT_NOT_FOUND" in raw -> "当前创作项目没有同步到后端，请重新从场景选择创建"
+        "ADMIN_EXPORT_REQUIRES_ADMIN" in raw -> "当前账号暂无该导出权益，请切换具备完整权益的账号"
+        "PROJECT_NOT_FOUND" in raw -> "当前创作项目未完成同步，请重新创建项目"
         "EXPORT_PREREQUISITES_MISSING" in raw -> "预览资源未生成成功，请先重新生成首版预览"
         "HTTP 403" in raw -> "没有该导出权益"
-        "HTTP 404" in raw -> "后端找不到当前项目"
+        "HTTP 404" in raw -> "未找到当前项目，请返回项目列表重试"
         "HTTP 409" in raw -> "导出前置资源不完整"
         raw.isNotBlank() -> raw
-        else -> "未知网络或后端异常"
+        else -> "网络或服务暂时异常"
     }
+}
+
+private fun String.trimErrorBody(): String {
+    return this
+        .replace("\\\"", "\"")
+        .substringAfter("\"detail\":\"", this)
+        .substringBefore("\"}", this)
+        .substringBefore(",\"requestId\"", this)
+        .trim()
+        .ifBlank { this }
 }
 
 private fun CreationSession.defaultStyleId(): String {

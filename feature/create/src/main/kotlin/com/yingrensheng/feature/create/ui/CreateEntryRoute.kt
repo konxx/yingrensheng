@@ -4,9 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
@@ -28,9 +33,31 @@ fun CreateEntryRoute(
     ) {
         creationRepository.scenes().forEach { scene ->
             YrsSurfaceCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(text = scene.title, style = MaterialTheme.typography.titleLarge)
-                    Text(text = scene.subtitle)
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = scene.iconToken(),
+                            style = MaterialTheme.typography.headlineMedium,
+                        )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = scene.title,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = scene.subtitle,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -50,6 +77,18 @@ fun CreateEntryRoute(
                 }
             }
         }
+    }
+}
+
+private fun SceneTemplate.iconToken(): String {
+    return when (sceneId) {
+        "scene_character_xiyou" -> "西"
+        "scene_character_honglou" -> "红"
+        "scene_outline_history" -> "史"
+        "scene_outline_original" -> "写"
+        "scene_media_comic" -> "漫"
+        "scene_media_short_video" -> "影"
+        else -> "创"
     }
 }
 

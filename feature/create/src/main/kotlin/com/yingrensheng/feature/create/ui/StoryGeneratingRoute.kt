@@ -62,14 +62,16 @@ fun StoryGeneratingRoute(
                 }
             }
             YrsPrimaryButton(
-                text = if (generatingStoryboard) outputKind.buildingText() else outputKind.nextText(),
+                text = if (generatingStoryboard) outputKind.buildingText() else outputKind.nextText(session.storyboard.isEmpty()),
                 onClick = {
                     if (!generatingStoryboard) {
                         scope.launch {
                             generatingStoryboard = true
                             try {
                                 creationRepository.buildStoryboard()
-                                onContinue()
+                                if (creationRepository.observeSession().value.storyboard.isNotEmpty()) {
+                                    onContinue()
+                                }
                             } finally {
                                 generatingStoryboard = false
                             }
@@ -84,7 +86,7 @@ fun StoryGeneratingRoute(
 private fun CreationOutputKind.generatingTitle(): String {
     return when (this) {
         CreationOutputKind.CHARACTER_STORY -> "生成角色故事包"
-        CreationOutputKind.STORY_TEXT -> "生成小说结构"
+        CreationOutputKind.STORY_TEXT -> "生成小说正文"
         CreationOutputKind.COMIC_STORYBOARD -> "拆解连环漫画"
         CreationOutputKind.SHORT_VIDEO -> "拆解短视频脚本"
     }
@@ -97,7 +99,7 @@ private fun CreationOutputKind.generatingSubtitle(sceneId: String): String {
         } else {
             "AI 会把照片气质、西游身份和取经路冲突整理成角色设定与第一幕剧情。"
         }
-        CreationOutputKind.STORY_TEXT -> "AI 会把输入扩写为小说正文方向、章节梗概和人物关系，不进入视频生成。"
+        CreationOutputKind.STORY_TEXT -> "AI 会把输入扩写为可阅读的分章正文和人物关系，不进入视频生成。"
         CreationOutputKind.COMIC_STORYBOARD -> "AI 会把小说拆成格子画面、人物动作、对白和旁白框，不进入视频预览。"
         CreationOutputKind.SHORT_VIDEO -> "AI 会把小说拆成前 5 秒钩子、镜头推进、旁白字幕和首帧提示。"
     }
@@ -106,7 +108,7 @@ private fun CreationOutputKind.generatingSubtitle(sceneId: String): String {
 private fun CreationOutputKind.startText(): String {
     return when (this) {
         CreationOutputKind.CHARACTER_STORY -> "开始生成角色故事"
-        CreationOutputKind.STORY_TEXT -> "开始生成小说结构"
+        CreationOutputKind.STORY_TEXT -> "开始生成小说正文"
         CreationOutputKind.COMIC_STORYBOARD -> "开始拆漫画脚本"
         CreationOutputKind.SHORT_VIDEO -> "开始拆视频脚本"
     }
@@ -115,16 +117,24 @@ private fun CreationOutputKind.startText(): String {
 private fun CreationOutputKind.buildingText(): String {
     return when (this) {
         CreationOutputKind.CHARACTER_STORY -> "正在整理角色故事"
-        CreationOutputKind.STORY_TEXT -> "正在整理章节梗概"
+        CreationOutputKind.STORY_TEXT -> "正在生成章节正文"
         CreationOutputKind.COMIC_STORYBOARD -> "正在生成漫画分格"
         CreationOutputKind.SHORT_VIDEO -> "正在生成视频分镜"
     }
 }
 
-private fun CreationOutputKind.nextText(): String {
+private fun CreationOutputKind.nextText(shouldRetry: Boolean): String {
+    if (shouldRetry) {
+        return when (this) {
+            CreationOutputKind.CHARACTER_STORY -> "整理角色故事包"
+            CreationOutputKind.STORY_TEXT -> "生成章节正文"
+            CreationOutputKind.COMIC_STORYBOARD -> "拆成漫画分格"
+            CreationOutputKind.SHORT_VIDEO -> "生成视频分镜"
+        }
+    }
     return when (this) {
         CreationOutputKind.CHARACTER_STORY -> "查看角色设定"
-        CreationOutputKind.STORY_TEXT -> "查看章节结构"
+        CreationOutputKind.STORY_TEXT -> "查看章节正文"
         CreationOutputKind.COMIC_STORYBOARD -> "查看漫画分格"
         CreationOutputKind.SHORT_VIDEO -> "查看视频分镜"
     }

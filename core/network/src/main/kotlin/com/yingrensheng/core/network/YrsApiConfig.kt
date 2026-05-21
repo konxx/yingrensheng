@@ -1,8 +1,6 @@
 package com.yingrensheng.core.network
 
 object YrsApiConfig {
-    // USB device debugging uses adb reverse: adb reverse tcp:3000 tcp:3000.
-    // The app module can override this at startup for emulator or LAN debugging.
     @Volatile
     private var backendOriginValue: String = "http://127.0.0.1:3000"
 
@@ -18,8 +16,19 @@ object YrsApiConfig {
     val HealthUrl: String
         get() = "$BackendOrigin/health"
 
+    val BackendOriginCandidates: List<String>
+        get() = listOf(
+            BackendOrigin,
+            "http://10.0.2.2:3000",
+            "http://127.0.0.1:3000",
+        ).distinct()
+
     fun configureBackendOrigin(origin: String) {
         backendOriginValue = origin.trimEnd('/')
+    }
+
+    fun healthUrl(origin: String): String {
+        return origin.trimEnd('/') + "/health"
     }
 
     fun configureAccessToken(token: String?) {

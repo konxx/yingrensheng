@@ -30,12 +30,12 @@ class FakeUserRepository : UserRepository {
     }
 
     override suspend fun login(username: String, password: String): AppResult<Unit> {
-        val nickname = if (username == "admin") "Administrator" else "林青"
+        val nickname = if (username == "admin") "尊享用户" else "林青"
         sessionState.value = sessionState.value.copy(
             user = User(
                 userId = if (username == "admin") "admin_001" else "user_001",
                 username = username,
-                email = if (username == "admin") "admin@yingrensheng.local" else "demo@yingrensheng.local",
+                email = if (username == "admin") "vip@yingrensheng.cn" else "user@yingrensheng.cn",
                 nickname = nickname,
                 avatarLabel = nickname.take(2),
                 role = if (username == "admin") "admin" else "user",

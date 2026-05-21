@@ -98,6 +98,19 @@ POST /api/v1/auth/login
 
 ## Admin 页面
 
+## Web 工作台
+
+后端会同时托管淡色系 Web 工作台，启动服务后访问：
+
+```text
+http://127.0.0.1:3000/web
+http://127.0.0.1:3000/web/create
+http://127.0.0.1:3000/web/projects
+http://127.0.0.1:3000/web/works
+```
+
+默认账号：`demo / 123456`；系统管理员：`admin / admin`。
+
 浏览器访问：
 
 ```text

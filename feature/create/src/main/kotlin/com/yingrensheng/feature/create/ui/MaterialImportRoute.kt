@@ -194,9 +194,9 @@ private fun photoButtonText(sceneId: String): String {
 
 private fun sampleButtonText(sceneId: String): String {
     return when (sceneId) {
-        "scene_character_xiyou" -> "先用示例人物走西游流程"
-        "scene_character_honglou" -> "先用示例人物走红楼流程"
-        else -> "先用示例人物继续"
+        "scene_character_xiyou" -> "先用推荐人物走西游流程"
+        "scene_character_honglou" -> "先用推荐人物走红楼流程"
+        else -> "先用推荐人物继续"
     }
 }
 

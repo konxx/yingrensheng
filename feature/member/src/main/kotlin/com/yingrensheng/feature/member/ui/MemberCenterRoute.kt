@@ -24,14 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsPrimaryButton
-import com.yingrensheng.core.designsystem.theme.WeUiAdminPurple
-import com.yingrensheng.core.designsystem.theme.WeUiBackground
-import com.yingrensheng.core.designsystem.theme.WeUiBorder
+import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
 import com.yingrensheng.core.designsystem.theme.WeUiGreen
 import com.yingrensheng.core.designsystem.theme.WeUiLiquidGold
 import com.yingrensheng.core.designsystem.theme.WeUiQr
-import com.yingrensheng.core.designsystem.theme.WeUiSurface
-import com.yingrensheng.core.designsystem.theme.WeUiTextSecondary
+import com.yingrensheng.core.designsystem.theme.WeUiAdminPurple
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.member.repository.MemberRepositoryProvider
 
@@ -60,7 +57,7 @@ private data class MemberPlan(
 fun MemberCenterRoute() {
     var period by remember { mutableStateOf(BillingPeriod.MONTHLY) }
     val memberInfo = MemberRepositoryProvider.current.getMemberInfo()
-    val isAdmin = memberInfo.levelName.equals("Admin", ignoreCase = true)
+    val isAdmin = memberInfo.levelName.hasAllAccessRights()
     val plans = MemberRepositoryProvider.current.getPlans().map {
         MemberPlan(
             name = it.name,
@@ -94,90 +91,89 @@ fun MemberCenterRoute() {
             }
             val averageMonthly = totalPrice / period.monthFactor
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(WeUiSurface, RoundedCornerShape(22.dp))
-                    .border(1.dp, WeUiBorder, RoundedCornerShape(22.dp))
-                    .padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = plan.name,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    if (plan.badge != null) {
+            YrsSurfaceCard {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
-                            text = plan.badge,
-                            modifier = Modifier
-                                .background(plan.accent.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            color = plan.accent,
+                            text = plan.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        if (plan.badge != null) {
+                            Text(
+                                text = plan.badge,
+                                modifier = Modifier
+                                    .background(plan.accent.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                color = plan.accent,
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = "¥$totalLabel",
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = period.suffix,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
 
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
                     Text(
-                        text = "¥$totalLabel",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = androidx.compose.ui.graphics.Color(0xFFFF3B30),
-                        fontWeight = FontWeight.Bold,
+                        text = when (period) {
+                            BillingPeriod.MONTHLY -> "下个自然月续费金额：¥${plan.monthlyPrice}"
+                            BillingPeriod.QUARTERLY -> "折后约合 ¥${String.format("%.1f", averageMonthly)}/月"
+                            BillingPeriod.YEARLY -> "折后约合 ¥${String.format("%.1f", averageMonthly)}/月"
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+
+                    YrsPrimaryButton(
+                        text = "特惠订阅",
+                        onClick = {},
+                    )
+
                     Text(
-                        text = period.suffix,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = androidx.compose.ui.graphics.Color(0xFFFF3B30),
+                        text = plan.summary,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
                     )
-                }
 
-                Text(
-                    text = when (period) {
-                        BillingPeriod.MONTHLY -> "下个自然月续费金额：¥${plan.monthlyPrice}"
-                        BillingPeriod.QUARTERLY -> "折后约合 ¥${String.format("%.1f", averageMonthly)}/月"
-                        BillingPeriod.YEARLY -> "折后约合 ¥${String.format("%.1f", averageMonthly)}/月"
-                    },
-                    color = WeUiTextSecondary,
-                )
-
-                YrsPrimaryButton(
-                    text = "特惠订阅",
-                    onClick = {},
-                )
-
-                Text(
-                    text = plan.summary,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    plan.features.forEach { feature ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(
-                                text = "✓",
-                                color = plan.accent,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                text = feature,
-                                color = WeUiTextSecondary,
-                            )
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        plan.features.forEach { feature ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    text = "✓",
+                                    color = plan.accent,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = feature,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+private fun String.hasAllAccessRights(): Boolean {
+    return equals("Admin", ignoreCase = true) || contains("尊享")
 }
 
 @Composable
@@ -196,7 +192,7 @@ private fun AdminAccessCard(memberInfo: com.yingrensheng.core.model.member.Membe
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Admin",
+                text = "尊享权益",
                 style = MaterialTheme.typography.headlineMedium,
                 color = WeUiLiquidGold,
                 fontWeight = FontWeight.Bold,
@@ -234,8 +230,8 @@ private fun BillingSwitcher(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(WeUiBackground, RoundedCornerShape(16.dp))
-            .border(1.dp, WeUiBorder, RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
             .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -245,7 +241,7 @@ private fun BillingSwitcher(
                 modifier = Modifier
                     .weight(1f)
                     .background(
-                        color = if (active) WeUiSurface else androidx.compose.ui.graphics.Color.Transparent,
+                        color = if (active) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent,
                         shape = RoundedCornerShape(12.dp),
                     )
                     .clickable { onSelect(period) }

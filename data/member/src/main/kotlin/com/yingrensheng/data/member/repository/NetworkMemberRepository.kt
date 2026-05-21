@@ -21,10 +21,10 @@ class NetworkMemberRepository(
                 val envelope: NetworkApiResponse<MemberMePayload> = apiClient.get("/member/me", type)
                 val payload = envelope.requireData()
                 MemberInfo(
-                    levelName = payload.levelName,
+                    levelName = payload.levelName.toMemberLevelDisplayName(),
                     subtitle = payload.subtitle,
                     benefits = payload.benefits,
-                    highlightLabel = if (payload.levelName.equals("Admin", ignoreCase = true)) {
+                    highlightLabel = if (payload.levelName.isAdminLevel()) {
                         "全部权益已开放"
                     } else {
                         "剩余导出 ${payload.remainingExportCount} 次"
@@ -63,6 +63,14 @@ class NetworkMemberRepository(
             )
         }
     }
+}
+
+private fun String.isAdminLevel(): Boolean {
+    return equals("Admin", ignoreCase = true) || contains("尊享")
+}
+
+private fun String.toMemberLevelDisplayName(): String {
+    return if (isAdminLevel()) "尊享" else this
 }
 
 private data class MemberPlanPayload(

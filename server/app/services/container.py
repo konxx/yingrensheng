@@ -5,6 +5,7 @@ import hmac
 import json
 import mimetypes
 from pathlib import Path
+import threading
 import time
 import uuid
 
@@ -197,8 +198,8 @@ class UserService:
             return profile
         return UserProfile(
             userId="user_001",
-            username="demo",
-            email="demo@yingrensheng.local",
+            username="yingrensheng_user",
+            email="user@yingrensheng.cn",
             nickname="林青",
             avatarUrl="",
         )
@@ -207,20 +208,20 @@ class UserService:
         profile = self.auth_service.get_user_by_token(token) if self.auth_service else None
         if profile is not None and profile.role == "admin":
             return MemberMeResponse(
-                levelName="Admin",
-                subtitle="系统管理员账号已开放 Lite / Pro / Max 全部权益，不受生成额度、导出次数与并发限制。",
+                levelName="尊享",
+                subtitle="当前账号已开放 Lite / Pro / Max 全部权益，不受生成额度、导出次数与并发限制。",
                 remainingExportCount=999999,
-                activePlanPriceLabel="系统管理员 · 全部权益",
+                activePlanPriceLabel="尊享账号 · 全部权益",
                 benefits=[
                     "无限制使用 Lite / Pro / Max 全部会员权益",
                     "不受导出次数、生成额度、并发与排队限制约束",
-                    "优先使用所有已接入与待接入的 AI 模型能力",
-                    "可访问运维后台并管理用户级别",
+                    "优先使用所有已接入与待接入的生成能力",
+                    "可访问管理中心并管理用户级别",
                 ],
             )
         return MemberMeResponse(
             levelName="Lite",
-            subtitle="当前开发版默认账号为 Lite 会员，后续会随订阅开通升级到 Pro / Max。",
+            subtitle="当前账号为 Lite 会员，可随订阅开通升级到 Pro / Max。",
             remainingExportCount=3,
             activePlanPriceLabel="连续包月 ¥49",
             benefits=["1080P 标准导出", "基础故事草稿与预览能力", "适合小型项目与轻量创作"],
@@ -370,13 +371,16 @@ class CreationService:
         style_id: str,
         theme_line: str,
     ) -> StoryDraftResponse:
-        draft = self.text_client.generate_story_draft(
-            scene_title=project.scene_title,
-            project_title=project.title,
-            theme_line=theme_line,
-            style_id=style_id,
-            scene_id=project.scene_id,
-        )
+        try:
+            draft = self.text_client.generate_story_draft(
+                scene_title=project.scene_title,
+                project_title=project.title,
+                theme_line=theme_line,
+                style_id=style_id,
+                scene_id=project.scene_id,
+            )
+        except Exception as exc:
+            raise ValueError(_ai_generation_error("AI_TEXT_GENERATION_FAILED", exc)) from exc
         return self.creation_repository.upsert_story_draft(
             project_id=project.project_id,
             title=draft["title"],
@@ -437,45 +441,105 @@ class CreationService:
         project = self.project_repository.get(project_id)
         if project is None:
             raise ValueError("PROJECT_NOT_FOUND")
-        draft = self._ensure_story_draft(project=project)
-        sections = self.text_client.generate_storyboard(
-            scene_title=project.scene_title,
-            story_draft={
-                "title": draft.title,
-                "opening": draft.opening,
-                "body": draft.body,
-                "closing": draft.closing,
-            },
-            scene_id=project.scene_id,
-        )
-        self.creation_repository.replace_storyboard(project_id=project_id, sections=sections)
-        output_kind = _output_kind_for_scene(project.scene_id)
-        if output_kind != "SHORT_VIDEO":
-            preview_data = self._non_video_preview_metadata(
-                project=project,
-                draft=draft,
-                sections=self.creation_repository.get_storyboard(project_id),
-                output_kind=output_kind,
-            )
-            self.creation_repository.upsert_preview(
-                project_id=project_id,
-                title=preview_data["title"],
-                subtitle_summary=preview_data["subtitleSummary"],
-                music_label=preview_data["musicLabel"],
-                cover_caption=preview_data["coverCaption"],
-                cover_url=preview_data["coverUrl"],
-                video_url=preview_data["videoUrl"],
-            )
-        return self.task_repository.upsert(
-            task_id=f"task_board_{uuid.uuid4().hex[:8]}",
+        task_id = f"task_board_{uuid.uuid4().hex[:8]}"
+        task = self.task_repository.upsert(
+            task_id=task_id,
             project_id=project_id,
             task_type="STORYBOARD",
-            status="SUCCEEDED",
-            progress=100,
-            current_stage="GENERATING_STORYBOARD",
-            estimated_remaining_seconds=0,
+            status="RUNNING",
+            progress=5,
+            current_stage="STORYBOARD_QUEUED",
+            estimated_remaining_seconds=120,
             result_json=json.dumps({"projectId": project_id}, ensure_ascii=False),
         )
+        threading.Thread(
+            target=self._run_storyboard_task,
+            args=(task_id, project_id),
+            daemon=True,
+        ).start()
+        return task
+
+    def _run_storyboard_task(self, task_id: str, project_id: str) -> None:
+        try:
+            self.task_repository.upsert(
+                task_id=task_id,
+                project_id=project_id,
+                task_type="STORYBOARD",
+                status="RUNNING",
+                progress=15,
+                current_stage="STORYBOARD_DRAFT_READY",
+                estimated_remaining_seconds=120,
+                result_json=json.dumps({"projectId": project_id}, ensure_ascii=False),
+            )
+            project = self.project_repository.get(project_id)
+            if project is None:
+                raise ValueError("PROJECT_NOT_FOUND")
+            draft = self._ensure_story_draft(project=project)
+            self.task_repository.upsert(
+                task_id=task_id,
+                project_id=project_id,
+                task_type="STORYBOARD",
+                status="RUNNING",
+                progress=35,
+                current_stage="STORYBOARD_AI_WRITING",
+                estimated_remaining_seconds=90,
+                result_json=json.dumps({"projectId": project_id}, ensure_ascii=False),
+            )
+            sections = self._create_storyboard(project=project, draft=draft)
+            self.task_repository.upsert(
+                task_id=task_id,
+                project_id=project_id,
+                task_type="STORYBOARD",
+                status="RUNNING",
+                progress=85,
+                current_stage="STORYBOARD_ASSEMBLING",
+                estimated_remaining_seconds=15,
+                result_json=json.dumps({"projectId": project_id, "sectionCount": len(sections)}, ensure_ascii=False),
+            )
+            output_kind = _output_kind_for_scene(project.scene_id)
+            if output_kind != "SHORT_VIDEO":
+                preview_data = self._non_video_preview_metadata(
+                    project=project,
+                    draft=draft,
+                    sections=sections,
+                    output_kind=output_kind,
+                )
+                self.creation_repository.upsert_preview(
+                    project_id=project_id,
+                    title=preview_data["title"],
+                    subtitle_summary=preview_data["subtitleSummary"],
+                    music_label=preview_data["musicLabel"],
+                    cover_caption=preview_data["coverCaption"],
+                    cover_url=preview_data["coverUrl"],
+                    video_url=preview_data["videoUrl"],
+                )
+            self.task_repository.upsert(
+                task_id=task_id,
+                project_id=project_id,
+                task_type="STORYBOARD",
+                status="SUCCEEDED",
+                progress=100,
+                current_stage="STORYBOARD_SUCCEEDED",
+                estimated_remaining_seconds=0,
+                result_json=json.dumps({"projectId": project_id, "sectionCount": len(sections)}, ensure_ascii=False),
+            )
+        except Exception as exc:
+            self.task_repository.upsert(
+                task_id=task_id,
+                project_id=project_id,
+                task_type="STORYBOARD",
+                status="FAILED",
+                progress=0,
+                current_stage="STORYBOARD_FAILED",
+                estimated_remaining_seconds=0,
+                error_json=json.dumps(
+                    {
+                        "code": "AI_STORYBOARD_GENERATION_FAILED",
+                        "message": str(exc).strip() or exc.__class__.__name__,
+                    },
+                    ensure_ascii=False,
+                ),
+            )
 
     def get_storyboard(self, project_id: str) -> list[StoryboardSectionResponse]:
         return self.creation_repository.get_storyboard(project_id)
@@ -631,9 +695,9 @@ class CreationService:
             preview = self.creation_repository.upsert_preview(
                 project_id=project_id,
                 title=str(result.get("title", "首版预览")),
-                subtitle_summary=str(result.get("subtitleSummary", "已生成 DashScope 视频预览。")),
-                music_label=str(result.get("musicLabel", "模型：DashScope 图生视频")),
-                cover_caption=str(result.get("coverCaption", "封面：DashScope 首帧图")),
+                subtitle_summary=str(result.get("subtitleSummary", "已生成视频预览。")),
+                music_label=str(result.get("musicLabel", "生成方式：图生视频")),
+                cover_caption=str(result.get("coverCaption", "封面：智能生成首帧图")),
                 video_url=str(video_result["video_url"]),
                 cover_url=str(result.get("coverUrl", "")),
             )
@@ -707,7 +771,7 @@ class CreationService:
                     cover_url=cover_url,
                     video_url="",
                 )
-                preview_data["subtitleSummary"] = "已生成短视频首帧封面和完整视频脚本，DashScope 视频可后续继续生成。"
+                preview_data["subtitleSummary"] = "已生成短视频首帧封面和完整视频脚本，视频可后续继续生成。"
             else:
                 preview_data = self._non_video_preview_metadata(
                     project=project,
@@ -725,7 +789,7 @@ class CreationService:
                 video_url=preview_data["videoUrl"],
             )
 
-        amount_label = "系统管理员权益 · 已豁免" if is_admin else (
+        amount_label = "尊享权益 · 已豁免" if is_admin else (
             "¥39.90" if payload.export_plan_id == "plan_single" else "¥168.00"
         )
         export_spec = _export_spec_for_kind(
@@ -734,7 +798,7 @@ class CreationService:
             remove_watermark=payload.remove_watermark,
         )
         if is_admin:
-            export_spec = f"{export_spec} · Admin 不消耗额度"
+            export_spec = f"{export_spec} · 尊享权益不消耗额度"
 
         self.order_repository.create(
             user_id=profile.user_id if profile is not None else "user_001",
@@ -918,7 +982,7 @@ class CreationService:
         ]
         if not preview.video_url:
             assets[1]["asset_type"] = "VIDEO_SCRIPT"
-            assets[1]["summary"] = "DashScope 视频仍在生成或生成失败，已保留完整视频脚本与首帧封面。"
+            assets[1]["summary"] = "视频仍在生成或生成失败，已保留完整视频脚本与首帧封面。"
         return assets
 
     def _character_work_assets(
@@ -965,7 +1029,8 @@ class CreationService:
         sections: list[StoryboardSectionResponse],
         cover_url: str,
     ) -> list[dict]:
-        full_text = _full_story_text(draft=draft, sections=sections)
+        chapter_assets = _chapter_assets_from_sections(project=project, draft=draft, sections=sections)
+        full_text = _full_story_text(draft=draft, chapter_assets=chapter_assets)
         return [
             {
                 "asset_type": "COVER",
@@ -981,19 +1046,9 @@ class CreationService:
                 "summary": "完整小说创作稿。",
                 "url": "",
                 "text_content": full_text,
-                "metadata": {"label": "小说正文"},
+                "metadata": {"label": "小说正文", "chapterCount": len(chapter_assets)},
             },
-        ] + [
-            {
-                "asset_type": "CHAPTER",
-                "title": section.title,
-                "summary": section.summary,
-                "url": "",
-                "text_content": section.subtitle_line,
-                "metadata": {"durationLabel": section.duration_label},
-            }
-            for section in sections
-        ]
+        ] + chapter_assets
 
     def _ensure_story_draft(self, project: ProjectDetail) -> StoryDraftResponse:
         draft = self.creation_repository.get_story_draft(project.project_id)
@@ -1018,16 +1073,19 @@ class CreationService:
         project: ProjectDetail,
         draft: StoryDraftResponse,
     ) -> list[StoryboardSectionResponse]:
-        sections = self.text_client.generate_storyboard(
-            scene_title=project.scene_title,
-            story_draft={
-                "title": draft.title,
-                "opening": draft.opening,
-                "body": draft.body,
-                "closing": draft.closing,
-            },
-            scene_id=project.scene_id,
-        )
+        try:
+            sections = self.text_client.generate_storyboard(
+                scene_title=project.scene_title,
+                story_draft={
+                    "title": draft.title,
+                    "opening": draft.opening,
+                    "body": draft.body,
+                    "closing": draft.closing,
+                },
+                scene_id=project.scene_id,
+            )
+        except Exception as exc:
+            raise ValueError(_ai_generation_error("AI_STORYBOARD_GENERATION_FAILED", exc)) from exc
         return self.creation_repository.replace_storyboard(project_id=project.project_id, sections=sections)
 
     def _project_image_inputs(self, project_id: str) -> list[str]:
@@ -1052,9 +1110,9 @@ class CreationService:
         return {
             "projectId": project.project_id,
             "title": draft.title,
-            "subtitleSummary": "已根据故事草稿、分镜和用户素材生成 DashScope 首版视频预览。",
-            "musicLabel": "模型：DashScope 图生视频",
-            "coverCaption": "封面：DashScope 生成首帧图",
+            "subtitleSummary": "已根据故事草稿、分镜和用户素材生成首版视频预览。",
+            "musicLabel": "生成方式：图生视频",
+            "coverCaption": "封面：智能生成首帧图",
             "coverUrl": cover_url,
             "videoUrl": video_url,
         }
@@ -1089,9 +1147,9 @@ class CreationService:
         return {
             "projectId": project.project_id,
             "title": draft.title,
-            "subtitleSummary": f"已生成小说创作稿和 {len(sections)} 个章节梗概，可导出文本创作包。",
+            "subtitleSummary": f"已生成小说创作稿和 {len(sections)} 章正文，可导出文本创作包。",
             "musicLabel": "输出：小说创作包",
-            "coverCaption": "包含：标题、开场、正文主线、章节梗概和结尾余味",
+            "coverCaption": "包含：标题、开场、分章正文和结尾余味",
             "coverUrl": "",
             "videoUrl": "",
         }
@@ -1201,7 +1259,7 @@ def _export_spec_for_kind(output_kind: str, resolution: str, remove_watermark: b
     if output_kind == "CHARACTER_STORY":
         return "角色故事包 · 设定卡与剧情资料 · 无视频"
     if output_kind == "STORY_TEXT":
-        return "小说创作包 · 正文与章节梗概 · 无视频"
+        return "小说创作包 · 完整正文与分章正文 · 无视频"
     return f"{resolution} {'无水印' if remove_watermark else '带水印'}"
 
 
@@ -1211,25 +1269,106 @@ def _work_duration_label(output_kind: str, sections_count: int) -> str:
     if output_kind == "CHARACTER_STORY":
         return "角色故事包"
     if output_kind == "STORY_TEXT":
-        return f"{sections_count} 章梗概"
+        return f"{sections_count} 章正文"
     return "00:48"
+
+
+def _chapter_assets_from_sections(
+    project: ProjectDetail,
+    draft: StoryDraftResponse,
+    sections: list[StoryboardSectionResponse],
+) -> list[dict]:
+    return [
+        {
+            "asset_type": "CHAPTER",
+            "title": section.title,
+            "summary": section.summary,
+            "url": "",
+            "text_content": _ensure_chapter_body(
+                project=project,
+                draft=draft,
+                section=section,
+                index=index,
+                total=len(sections),
+            ),
+            "metadata": {"durationLabel": "小说正文", "chapter": index + 1},
+        }
+        for index, section in enumerate(sections)
+    ]
+
+
+def _ensure_chapter_body(
+    project: ProjectDetail,
+    draft: StoryDraftResponse,
+    section: StoryboardSectionResponse,
+    index: int,
+    total: int,
+) -> str:
+    candidate = section.subtitle_line.strip()
+    if _looks_like_real_chapter(candidate):
+        return candidate
+    return _fallback_export_chapter_body(
+        project=project,
+        draft=draft,
+        section=section,
+        index=index,
+        total=total,
+    )
+
+
+def _looks_like_real_chapter(text: str) -> bool:
+    if len(text) < 220:
+        return False
+    rejected_markers = ("章节作用", "设定项", "剧情作用", "扩展项", "字幕：", "旁白：", "旁白框：")
+    return not any(marker in text[:80] for marker in rejected_markers)
+
+
+def _fallback_export_chapter_body(
+    project: ProjectDetail,
+    draft: StoryDraftResponse,
+    section: StoryboardSectionResponse,
+    index: int,
+    total: int,
+) -> str:
+    protagonist = "他"
+    scene_hint = "历史与传闻交叠的世界" if project.scene_id == "scene_outline_history" else "只属于这个故事的新世界"
+    pressure = "旧日秩序" if project.scene_id == "scene_outline_history" else "世界规则"
+    hook = "门外忽然传来一声轻响，像有人终于等到了他的答案。" if index + 1 < total else "灯影收拢时，他知道这只是第一卷的终点。"
+    return (
+        f"{section.title}\n\n"
+        f"{scene_hint}里，{protagonist}沿着青石路往前走。{draft.opening}这句话仍停在耳边，"
+        f"像一枚未落下的棋子，让他每一步都不能再装作旁观。风从巷口穿过，带来潮湿的木香，"
+        f"也带来人群压低的议论声。\n\n"
+        f"{section.summary}他原以为这只是故事里一个转折，可当目光真正落到那些人的脸上时，"
+        f"每一分犹豫都有了重量。有人向他求一个解释，有人把手按在刀柄上，还有人站在灯下，"
+        f"用沉默提醒他：这里的每句话都会留下后果。\n\n"
+        f"{draft.body}但这一章里，真正推动他的不是宏大的命运，而是一件很小的事。"
+        f"他看见一个原本会被忽略的人低头捡起碎裂的纸页，纸页上残存的字迹恰好指向下一场风波。"
+        f"他伸手拦住对方，声音比自己想象得更稳：“先别走，把你看见的告诉我。”\n\n"
+        f"{pressure}随即反扑。屋内的灯晃了一下，众人的神色也跟着变了。{protagonist}知道自己已越过界线，"
+        f"再没有退回原处的可能。{draft.closing}{hook}"
+    )
 
 
 def _full_story_text(
     draft: StoryDraftResponse,
-    sections: list[StoryboardSectionResponse],
+    chapter_assets: list[dict],
 ) -> str:
     chapter_lines = "\n\n".join(
-        f"{index + 1}. {section.title}\n{section.summary}\n{section.subtitle_line}"
-        for index, section in enumerate(sections)
+        f"{index + 1}. {asset['title']}\n{asset['text_content']}"
+        for index, asset in enumerate(chapter_assets)
     )
     return (
         f"{draft.title}\n\n"
         f"开场\n{draft.opening}\n\n"
-        f"正文\n{draft.body}\n\n"
-        f"结构\n{chapter_lines}\n\n"
+        f"章节正文\n{chapter_lines}\n\n"
         f"结尾\n{draft.closing}"
     )
+
+
+def _ai_generation_error(code: str, exc: Exception) -> str:
+    message = str(exc).strip() or exc.__class__.__name__
+    return f"{code}:{message}"
 
 
 @dataclass

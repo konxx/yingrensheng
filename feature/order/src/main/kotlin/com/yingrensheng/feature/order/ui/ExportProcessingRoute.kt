@@ -69,6 +69,6 @@ private fun CreationOutputKind.processingSubtitle(): String {
         CreationOutputKind.STORY_TEXT -> "当前结果为小说文本创作包，不进入视频生成流程。"
         CreationOutputKind.COMIC_STORYBOARD -> "当前结果为连环漫画分镜包，不进入视频生成流程。"
         CreationOutputKind.CHARACTER_STORY -> "当前结果为角色故事创作包，不进入视频生成流程。"
-        CreationOutputKind.SHORT_VIDEO -> "离开页面后真实版本会继续后台轮询与通知提醒，这里先展示状态恢复形态。"
+        CreationOutputKind.SHORT_VIDEO -> "离开页面后导出仍会继续处理，完成后可在作品列表查看。"
     }
 }

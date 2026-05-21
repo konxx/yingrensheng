@@ -18,34 +18,33 @@ _ADMIN_SESSIONS: dict[str, str] = {}
 ADMIN_ALL_ACCESS_RIGHTS = [
     "无限制使用 Lite / Pro / Max 全部会员权益",
     "不受导出次数、生成额度、并发与排队限制约束",
-    "可访问运维后台的用户、订单、作品和后续系统配置能力",
-    "可创建新的系统管理员账号并重置账号密码",
-    "可优先使用所有已接入与待接入的 AI 模型能力",
+    "可访问管理中心的用户、订单、作品和系统配置能力",
+    "可创建新的尊享管理员账号并重置账号密码",
+    "可优先使用所有已接入与待接入的生成能力",
 ]
 
 
 @router.get("/admin", response_class=HTMLResponse)
 def admin_login_page() -> str:
     return _page(
-        title="映人生运维后台",
+        title="映人生管理中心",
         body=f"""
         <main class="auth-shell">
           <section class="login-card">
-            <div class="status-pill"><span></span> 运维控制节点</div>
-            <h1>映人生 <strong>运维后台</strong></h1>
-            <p class="muted">用于管理账号、会员层级和系统管理员权益。</p>
+            <div class="status-pill"><span></span> 管理中心</div>
+            <h1>映人生 <strong>管理中心</strong></h1>
+            <p class="muted">用于管理账号、会员层级和尊享权益。</p>
             <form method="post" action="/admin/login" class="stack">
               <label>
                 <span>管理员账号</span>
-                <input name="username" placeholder="请输入管理员账号" value="admin" autocomplete="username" />
+                <input name="username" placeholder="请输入管理员账号" autocomplete="username" />
               </label>
               <label>
                 <span>管理员密码</span>
-                <input name="password" type="password" placeholder="请输入管理员密码" value="admin" autocomplete="current-password" />
+                <input name="password" type="password" placeholder="请输入管理员密码" autocomplete="current-password" />
               </label>
-              <button type="submit" class="primary-button">登录后台</button>
+              <button type="submit" class="primary-button">登录管理中心</button>
             </form>
-            <p class="hint">默认账号：<code>admin / admin</code></p>
           </section>
         </main>
         """,
@@ -111,7 +110,7 @@ def admin_create_system_admin(
     return _dashboard(
         admin_username=admin_username,
         token=admin_token,
-        notice=f"系统管理员 {account.username} 已创建，并已开放全部权益。",
+        notice=f"尊享管理员 {account.username} 已创建，并已开放全部权益。",
     )
 
 
@@ -160,29 +159,29 @@ def _dashboard(
     )
 
     return _page(
-        title="映人生运维后台",
+        title="映人生管理中心",
         body=f"""
         <main class="dashboard">
           <section class="hero">
             <div>
-              <div class="status-pill"><span></span> 管理员会话已验证</div>
-              <h1>运维 <strong>控制台</strong></h1>
-              <p class="muted">当前登录：<code>{escape(admin_username)}</code>。Lite / Pro / Max 仅作为 App 内明面付费等级展示；Admin 是内部系统管理员等级，开放全部权益。</p>
+                <div class="status-pill"><span></span> 管理员会话已验证</div>
+              <h1>管理 <strong>控制台</strong></h1>
+              <p class="muted">当前登录：<code>{escape(admin_username)}</code>。Lite / Pro / Max 为会员等级；尊享账号开放全部权益。</p>
             </div>
             <div class="orb" aria-hidden="true">
               <div class="ring ring-a"></div>
               <div class="ring ring-b"></div>
-              <div class="core">ADM</div>
+              <div class="core">尊享</div>
             </div>
           </section>
 
           {notice_html}
 
           <section class="stats-grid" aria-label="operations summary">
-            {_stat_card("普通用户", str(len(app_users)), "role=user")}
-            {_stat_card("系统管理员", str(len(admin_users)), "role=admin")}
+            {_stat_card("普通用户", str(len(app_users)), "应用账号")}
+            {_stat_card("尊享管理员", str(len(admin_users)), "全部权益")}
             {_stat_card("展示会员等级", str(len(plans)), "Lite / Pro / Max")}
-            {_stat_card("Admin 权益", "全部", "不受额度限制")}
+            {_stat_card("尊享权益", "全部", "不受额度限制")}
           </section>
 
           <section class="section-block">
@@ -212,13 +211,13 @@ def _dashboard(
             <div class="panel admin-panel">
               <div class="panel-title">
                 <p class="eyebrow">全部权益</p>
-                <h2>系统管理员</h2>
+                <h2>尊享管理员</h2>
               </div>
-              <p class="muted compact">Admin 账号不受付费等级限制，作为内部运维账号享用全部产品权益。</p>
+              <p class="muted compact">尊享账号不受付费等级限制，可享用全部产品权益。</p>
               <form method="post" action="/admin/admins/create" class="stack">
                 {_token_input(token)}
                 {_account_inputs(prefix="admin")}
-                <button type="submit" class="primary-button">创建系统管理员</button>
+                <button type="submit" class="primary-button">创建尊享管理员</button>
               </form>
             </div>
           </section>
@@ -227,7 +226,7 @@ def _dashboard(
             <div class="panel">
               <div class="panel-title">
                 <p class="eyebrow">管理员账号</p>
-                <h2>系统运维人员</h2>
+                <h2>尊享管理员</h2>
               </div>
               {_accounts_table(admin_users, show_access=True)}
             </div>
@@ -237,18 +236,18 @@ def _dashboard(
                 <p class="eyebrow">账号级别</p>
                 <h2>调整用户级别</h2>
               </div>
-              <p class="muted compact">输入用户 ID 后可把普通用户提升为 Admin，也可将管理员降回普通用户。</p>
+              <p class="muted compact">输入用户 ID 后可把普通用户提升为尊享账号，也可将管理员降回普通用户。</p>
               <form method="post" action="/admin/users/role" class="stack">
                 {_token_input(token)}
                 <label>
                   <span>用户 ID</span>
-                  <input name="user_id" placeholder="例如 user_001 或 admin_001" />
+                  <input name="user_id" placeholder="请输入用户 ID" />
                 </label>
                 <label>
                   <span>目标级别</span>
                   <select name="role">
-                    <option value="admin">系统管理员 admin</option>
-                    <option value="user">普通用户 user</option>
+                    <option value="admin">尊享账号</option>
+                    <option value="user">普通用户</option>
                   </select>
                 </label>
                 <button type="submit" class="primary-button">更新用户级别</button>
@@ -266,7 +265,7 @@ def _dashboard(
                 {_token_input(token)}
                 <label>
                   <span>用户 ID</span>
-                  <input name="user_id" placeholder="例如 user_001 或 admin_001" />
+                  <input name="user_id" placeholder="请输入用户 ID" />
                 </label>
                 <label>
                   <span>新密码</span>
@@ -279,7 +278,7 @@ def _dashboard(
             <div class="panel">
               <div class="panel-title">
                 <p class="eyebrow">级别说明</p>
-                <h2>Admin 权益开放</h2>
+                <h2>尊享权益开放</h2>
               </div>
               <ul>{''.join(f'<li>{escape(right)}</li>' for right in ADMIN_ALL_ACCESS_RIGHTS)}</ul>
             </div>
@@ -347,7 +346,7 @@ def _create_account(
 def _update_account_role(user_id: str, role: str) -> UserAccountModel:
     normalized_role = role.strip().lower()
     if normalized_role not in {"user", "admin"}:
-        raise ValueError("目标级别只能是普通用户或系统管理员。")
+        raise ValueError("目标级别只能是普通用户或尊享账号。")
     if not user_id.strip():
         raise ValueError("用户 ID 不能为空。")
 
@@ -409,11 +408,11 @@ def _admin_plan_card() -> str:
     <article class="plan-card plan-card-admin">
       <div class="plan-topline">
         <span class="tier-badge live">全部权益</span>
-        <span class="tier-badge gold">系统级</span>
+        <span class="tier-badge gold">尊享</span>
       </div>
-      <h3>Admin</h3>
+      <h3>尊享权益</h3>
       <p class="price">全部<small>开放</small></p>
-      <p class="muted">内部系统管理员等级，不作为 App 内付费等级展示。</p>
+      <p class="muted">尊享账号专属权益，可覆盖全部创作与导出能力。</p>
       <ul>{''.join(f'<li>{escape(right)}</li>' for right in ADMIN_ALL_ACCESS_RIGHTS)}</ul>
     </article>
     """
@@ -451,9 +450,9 @@ def _accounts_table(accounts: list[UserAccountModel], show_access: bool = False)
 def _account_inputs(prefix: str) -> str:
     safe_prefix = escape(prefix)
     is_admin = prefix == "admin"
-    username_placeholder = "admin_name" if is_admin else "user_name"
-    email_placeholder = "admin@yingrensheng.local" if is_admin else "user@yingrensheng.local"
-    nickname_placeholder = "系统管理员" if is_admin else "普通用户"
+    username_placeholder = "请输入账号"
+    email_placeholder = "请输入邮箱"
+    nickname_placeholder = "尊享管理员" if is_admin else "普通用户"
     return f"""
     <label>
       <span>账号</span>
@@ -494,7 +493,7 @@ def _badge(value: str | None) -> str:
 
 def _role_label(role: str) -> str:
     return {
-        "admin": "系统管理员",
+        "admin": "尊享账号",
         "user": "普通用户",
     }.get(role, role)
 

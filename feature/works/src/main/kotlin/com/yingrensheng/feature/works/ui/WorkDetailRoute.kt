@@ -43,10 +43,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.yingrensheng.core.common.util.Formatters
-import com.yingrensheng.core.designsystem.theme.WeUiBorder
-import com.yingrensheng.core.designsystem.theme.WeUiBackgroundMuted
-import com.yingrensheng.core.designsystem.theme.WeUiSurface
-import com.yingrensheng.core.designsystem.theme.WeUiTextSecondary
 import com.yingrensheng.core.model.creation.StoryboardSection
 import com.yingrensheng.core.model.work.Work
 import com.yingrensheng.core.model.work.WorkAsset
@@ -94,11 +90,11 @@ fun WorkDetailRoute(
             "当前没有可展示的作品，请从作品列表重新进入。"
         } else {
             if (isComicWork) {
-                "这里展示该作品的真实导出状态、所属项目，以及可直接预览的连环漫画成品。"
+                "这里展示该作品的导出状态、所属项目，以及可直接预览的连环漫画成品。"
             } else if (isVideoWork) {
-                "这里展示该作品的真实导出状态、所属项目，以及可直接观看的短视频成品。"
+                "这里展示该作品的导出状态、所属项目，以及可直接观看的短视频成品。"
             } else {
-                "这里展示该作品的真实导出状态、所属项目，以及完整图文成品包。"
+                "这里展示该作品的导出状态、所属项目，以及完整图文成品包。"
             }
         },
     ) {
@@ -110,8 +106,8 @@ fun WorkDetailRoute(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(WeUiSurface, RoundedCornerShape(18.dp))
-                .border(1.dp, WeUiBorder, RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp))
                 .combinedClickable(
                     onClick = {},
                     onLongClick = { showDeleteDialog = true },
@@ -123,11 +119,11 @@ fun WorkDetailRoute(
             InfoPill(text = work.sceneLabel)
             InfoPill(text = work.durationLabel)
             InfoPill(text = work.statusLabel)
-            Text(text = "项目 ID：${work.projectId}", color = WeUiTextSecondary)
-            Text(text = "作品 ID：${work.workId}", color = WeUiTextSecondary)
+            Text(text = "所属项目：${work.projectId}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "作品编号：${work.workId}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 text = "最近更新 ${Formatters.formatShortTime(work.updatedAt)}",
-                color = WeUiTextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -197,8 +193,8 @@ private fun WorkAssetsBlock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(WeUiSurface, RoundedCornerShape(18.dp))
-            .border(1.dp, WeUiBorder, RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -222,7 +218,7 @@ private fun WorkAssetsBlock(
                     assetType = "VIDEO",
                     orderIndex = assets.size,
                     title = "短视频成品",
-                    summary = "后端返回的视频资源。",
+                    summary = "已生成的视频成品。",
                     url = work.videoUrl,
                     textContent = "",
                 ),
@@ -238,7 +234,7 @@ private fun ImageAssetCard(asset: WorkAsset) {
         if (asset.url.isNotBlank()) {
             RemoteCoverImage(imageUrl = asset.url, title = asset.title)
         }
-        Text(text = asset.summary, color = WeUiTextSecondary)
+        Text(text = asset.summary, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -247,8 +243,8 @@ private fun ComicAssetCard(asset: WorkAsset) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(WeUiBackgroundMuted, RoundedCornerShape(12.dp))
-            .border(1.dp, WeUiBorder, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -260,16 +256,16 @@ private fun ComicAssetCard(asset: WorkAsset) {
                     .fillMaxWidth()
                     .aspectRatio(1.45f)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(WeUiSurface),
+                    .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = "第 ${asset.orderIndex + 1} 格", color = WeUiTextSecondary)
+                Text(text = "第 ${asset.orderIndex + 1} 格", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Text(text = asset.title, style = MaterialTheme.typography.titleSmall)
         Text(text = asset.summary)
         if (asset.textContent.isNotBlank()) {
-            Text(text = asset.textContent, color = WeUiTextSecondary)
+            Text(text = asset.textContent, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -281,9 +277,9 @@ private fun VideoAssetCard(asset: WorkAsset) {
         if (asset.url.isNotBlank()) {
             RemoteVideoPlayer(videoUrl = asset.url, title = asset.title)
         } else {
-            Text(text = "视频仍在生成或暂未返回地址，已保留脚本。", color = WeUiTextSecondary)
+            Text(text = "视频仍在生成或暂未生成播放地址，已保留脚本。", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(text = asset.summary, color = WeUiTextSecondary)
+        Text(text = asset.summary, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (asset.textContent.isNotBlank()) {
             TextAssetContent(text = asset.textContent)
         }
@@ -292,15 +288,23 @@ private fun VideoAssetCard(asset: WorkAsset) {
 
 @Composable
 private fun TextAssetCard(asset: WorkAsset) {
+    val label = when (asset.assetType) {
+        "CHAPTER" -> "章节正文"
+        "TEXT" -> "完整正文"
+        "STORY_CARD" -> "故事资料"
+        "VIDEO_SCRIPT" -> "视频脚本"
+        else -> "文本内容"
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(WeUiBackgroundMuted, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(text = asset.title, style = MaterialTheme.typography.titleSmall)
-        Text(text = asset.summary, color = WeUiTextSecondary)
+        InfoPill(text = label)
+        Text(text = asset.summary, color = MaterialTheme.colorScheme.onSurfaceVariant)
         TextAssetContent(text = asset.textContent)
     }
 }
@@ -312,7 +316,7 @@ private fun GenericAssetCard(asset: WorkAsset) {
         Text(text = asset.summary)
         if (asset.url.isNotBlank()) {
             SelectionContainer {
-                Text(text = asset.url, color = WeUiTextSecondary)
+                Text(text = asset.url, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (asset.textContent.isNotBlank()) {
@@ -338,8 +342,8 @@ private fun ComicStoryboardBlock(storyboard: List<StoryboardSection>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(WeUiSurface, RoundedCornerShape(18.dp))
-            .border(1.dp, WeUiBorder, RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -347,7 +351,7 @@ private fun ComicStoryboardBlock(storyboard: List<StoryboardSection>) {
         if (storyboard.isEmpty()) {
             Text(
                 text = "正在读取分镜产出；如果一直为空，请重新进入作品详情或重新导出一次漫画分镜包。",
-                color = WeUiTextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             return@Column
         }
@@ -372,8 +376,8 @@ private fun ComicPanel(
         modifier = Modifier
             .widthIn(min = 142.dp)
             .fillMaxWidth()
-            .background(WeUiBackgroundMuted, RoundedCornerShape(12.dp))
-            .border(1.dp, WeUiBorder, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -382,14 +386,14 @@ private fun ComicPanel(
                 .fillMaxWidth()
                 .aspectRatio(if (index % 4 == 0 || index % 4 == 3) 2.1f else 1.15f)
                 .clip(RoundedCornerShape(8.dp))
-                .background(WeUiSurface),
+                .background(MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text = "第 ${index + 1} 格", color = WeUiTextSecondary)
+            Text(text = "第 ${index + 1} 格", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(text = section.title, style = MaterialTheme.typography.titleSmall)
         Text(text = section.summary)
-        Text(text = section.subtitleLine, color = WeUiTextSecondary)
+        Text(text = section.subtitleLine, color = MaterialTheme.colorScheme.onSurfaceVariant)
         InfoPill(text = section.durationLabel)
     }
 }
@@ -404,8 +408,8 @@ private fun AssetBlock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(WeUiSurface, RoundedCornerShape(18.dp))
-            .border(1.dp, WeUiBorder, RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -417,7 +421,7 @@ private fun AssetBlock(
             Text(
                 text = value.ifBlank { emptyText },
                 style = MaterialTheme.typography.bodyMedium,
-                color = WeUiTextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -465,7 +469,7 @@ private fun RemoteCoverImage(
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
             .clip(RoundedCornerShape(14.dp))
-            .background(WeUiBackgroundMuted),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         val image = bitmap
@@ -477,7 +481,7 @@ private fun RemoteCoverImage(
                 contentScale = ContentScale.Crop,
             )
         } else {
-            Text(text = "封面载入中", color = WeUiTextSecondary)
+            Text(text = "封面载入中", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -499,7 +503,7 @@ private fun RemoteVideoPlayer(
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
             .clip(RoundedCornerShape(14.dp))
-            .background(WeUiBackgroundMuted),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         AndroidView(

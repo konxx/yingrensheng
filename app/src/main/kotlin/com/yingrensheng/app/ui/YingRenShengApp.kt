@@ -3,10 +3,24 @@ package com.yingrensheng.app.ui
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.AddCircle
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.VideoLibrary
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,7 +33,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -80,7 +101,10 @@ fun YingRenShengApp() {
     var authErrorMessage by remember { mutableStateOf<String?>(null) }
     var lastLoginUsername by remember { mutableStateOf(loginPreferenceStore.lastUsername()) }
     var selectedWork by remember { mutableStateOf<Work?>(null) }
-    val showBottomBar = currentRoute in topLevelDestinations.map(TopLevelDestination::route)
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val visibleRoute = navBackStackEntry?.destination?.route ?: currentRoute
+    val showBottomBar = visibleRoute in topLevelDestinations.map(TopLevelDestination::route)
 
     fun resolvePostBackendRoute(): String {
         return when {
@@ -114,6 +138,15 @@ fun YingRenShengApp() {
         }
     }
 
+    LaunchedEffect(currentRoute) {
+        if (visibleRoute != currentRoute) {
+            navController.navigate(currentRoute) {
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
     fun navigate(route: String) {
         if (currentRoute != route) {
             routeBackStack.add(currentRoute)
@@ -123,6 +156,13 @@ fun YingRenShengApp() {
 
     fun navigateTopLevel(route: String) {
         currentRoute = route
+        navController.navigate(route) {
+            popUpTo(AppRoute.Home) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
     }
 
     fun popBackTo(route: String) {
@@ -206,15 +246,34 @@ fun YingRenShengApp() {
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp,
+                ) {
                     topLevelDestinations.forEach { destination ->
+                        val selected = visibleRoute == destination.route
+                        val icon = destination.icon(selected)
                         NavigationBarItem(
-                            selected = currentRoute == destination.route,
+                            selected = selected,
                             onClick = { navigateTopLevel(destination.route) },
-                            icon = { Text(destination.label.take(1)) },
+                            icon = {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = destination.label,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            },
                             label = { Text(destination.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                         )
                     }
                 }
@@ -222,58 +281,151 @@ fun YingRenShengApp() {
         },
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
-            when (currentRoute) {
+            AppNavHost(
+                navController = navController,
+                startDestination = currentRoute,
+                renderRoute = { route ->
+                    Crossfade(targetState = route, label = "routeCrossfade") { targetRoute ->
+                        AppRouteContent(
+                            route = targetRoute,
+                            backendReady = backendReady,
+                            onRetryBackend = { backendProbeVersion += 1 },
+                            onContinueBackend = { currentRoute = resolvePostBackendRoute() },
+                            navigate = ::navigate,
+                            popBackTo = ::popBackTo,
+                            firstRouteForScene = ::firstRouteForScene,
+                            routeAfterMaterialImport = ::routeAfterMaterialImport,
+                            routeAfterMaterialReview = ::routeAfterMaterialReview,
+                            routeAfterInterview = ::routeAfterInterview,
+                            routeAfterStyleSelect = ::routeAfterStyleSelect,
+                            routeAfterStoryDraft = ::routeAfterStoryDraft,
+                            onAcceptAgreement = {
+                                userRepository.acceptAgreement()
+                                loginPreferenceStore.saveAcceptedAgreement()
+                                currentRoute = AppRoute.Login
+                            },
+                            onLogin = { username, password ->
+                                scope.launch {
+                                    authLoading = true
+                                    authErrorMessage = null
+                                    when (val result = userRepository.login(username, password)) {
+                                        is AppResult.Success -> {
+                                            loginPreferenceStore.saveLastUsername(username)
+                                            lastLoginUsername = username
+                                            currentRoute = AppRoute.Home
+                                        }
+                                        is AppResult.Error -> authErrorMessage = result.message
+                                    }
+                                    authLoading = false
+                                }
+                            },
+                            onRegister = { username, nickname, email, password ->
+                                scope.launch {
+                                    authLoading = true
+                                    authErrorMessage = null
+                                    when (val result = userRepository.register(username, nickname, email, password)) {
+                                        is AppResult.Success -> {
+                                            loginPreferenceStore.saveLastUsername(username)
+                                            lastLoginUsername = username
+                                            currentRoute = AppRoute.Home
+                                        }
+                                        is AppResult.Error -> authErrorMessage = result.message
+                                    }
+                                    authLoading = false
+                                }
+                            },
+                            authLoading = authLoading,
+                            authErrorMessage = authErrorMessage,
+                            lastLoginUsername = lastLoginUsername,
+                            selectedWork = selectedWork,
+                            onSelectedWorkChange = { selectedWork = it },
+                            onDeleteWork = { work ->
+                                scope.launch {
+                                    val deleted = withContext(Dispatchers.IO) {
+                                        WorkRepositoryProvider.current.deleteWork(work.workId)
+                                    }
+                                    selectedWork = null
+                                    popBackTo(AppRoute.Works)
+                                    Toast.makeText(
+                                        context,
+                                        if (deleted) "作品已删除" else "作品记录不存在",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            },
+                            onLogout = {
+                                userRepository.logout()
+                                popBackTo(AppRoute.Login)
+                            },
+                        )
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppNavHost(
+    navController: NavHostController,
+    startDestination: String,
+    renderRoute: @Composable (String) -> Unit,
+) {
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+    ) {
+        AppRoute.allRoutes.forEach { route ->
+            composable(route) {
+                renderRoute(route)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppRouteContent(
+    route: String,
+    backendReady: Boolean?,
+    onRetryBackend: () -> Unit,
+    onContinueBackend: () -> Unit,
+    navigate: (String) -> Unit,
+    popBackTo: (String) -> Unit,
+    firstRouteForScene: (SceneTemplate) -> String,
+    routeAfterMaterialImport: () -> String,
+    routeAfterMaterialReview: () -> String,
+    routeAfterInterview: () -> String,
+    routeAfterStyleSelect: () -> String,
+    routeAfterStoryDraft: () -> String,
+    onAcceptAgreement: () -> Unit,
+    onLogin: (String, String) -> Unit,
+    onRegister: (String, String, String, String) -> Unit,
+    authLoading: Boolean,
+    authErrorMessage: String?,
+    lastLoginUsername: String,
+    selectedWork: Work?,
+    onSelectedWorkChange: (Work?) -> Unit,
+    onDeleteWork: (Work) -> Unit,
+    onLogout: () -> Unit,
+) {
+    when (route) {
             AppRoute.BackendCheck -> BackendCheckRoute(
                 backendReady = backendReady,
-                onRetry = {
-                    backendProbeVersion += 1
-                },
-                onContinue = { currentRoute = resolvePostBackendRoute() },
+                onRetry = onRetryBackend,
+                onContinue = onContinueBackend,
             )
 
             AppRoute.Onboarding -> OnboardingRoute(
-                onContinue = { currentRoute = AppRoute.Agreement },
+                onContinue = { navigate(AppRoute.Agreement) },
             )
 
             AppRoute.Agreement -> AgreementRoute(
-                onAccept = {
-                    userRepository.acceptAgreement()
-                    loginPreferenceStore.saveAcceptedAgreement()
-                    currentRoute = AppRoute.Login
-                },
+                onAccept = onAcceptAgreement,
             )
 
             AppRoute.Login -> LoginRoute(
-                onLogin = { username, password ->
-                    scope.launch {
-                        authLoading = true
-                        authErrorMessage = null
-                        when (val result = userRepository.login(username, password)) {
-                            is AppResult.Success -> {
-                                loginPreferenceStore.saveLastUsername(username)
-                                lastLoginUsername = username
-                                currentRoute = AppRoute.Home
-                            }
-                            is AppResult.Error -> authErrorMessage = result.message
-                        }
-                        authLoading = false
-                    }
-                },
-                onRegister = { username, nickname, email, password ->
-                    scope.launch {
-                        authLoading = true
-                        authErrorMessage = null
-                        when (val result = userRepository.register(username, nickname, email, password)) {
-                            is AppResult.Success -> {
-                                loginPreferenceStore.saveLastUsername(username)
-                                lastLoginUsername = username
-                                currentRoute = AppRoute.Home
-                            }
-                            is AppResult.Error -> authErrorMessage = result.message
-                        }
-                        authLoading = false
-                    }
-                },
+                onLogin = onLogin,
+                onRegister = onRegister,
                 loading = authLoading,
                 errorMessage = authErrorMessage,
                 initialUsername = lastLoginUsername,
@@ -284,6 +436,10 @@ fun YingRenShengApp() {
             )
 
             AppRoute.CreateEntry -> CreateEntryRoute(
+                onFlowStarted = { scene -> navigate(firstRouteForScene(scene)) },
+            )
+
+            AppRoute.SceneSelect -> CreateEntryRoute(
                 onFlowStarted = { scene -> navigate(firstRouteForScene(scene)) },
             )
 
@@ -323,7 +479,7 @@ fun YingRenShengApp() {
 
             AppRoute.ExportPlan -> ExportPlanRoute(
                 onContinue = { navigate(AppRoute.Payment) },
-                isAdmin = MemberRepositoryProvider.current.getMemberInfo().levelName.equals("Admin", ignoreCase = true),
+                isAdmin = MemberRepositoryProvider.current.getMemberInfo().levelName.hasAllAccessRights(),
             )
 
             AppRoute.Payment -> PaymentRoute(
@@ -336,27 +492,14 @@ fun YingRenShengApp() {
 
             AppRoute.Works -> WorksRoute(
                 onOpenWork = { work ->
-                    selectedWork = work
+                    onSelectedWorkChange(work)
                     navigate(AppRoute.WorkDetail)
                 },
             )
 
             AppRoute.WorkDetail -> WorkDetailRoute(
                 work = selectedWork,
-                onDeleteWork = { work ->
-                    scope.launch {
-                        val deleted = withContext(Dispatchers.IO) {
-                            WorkRepositoryProvider.current.deleteWork(work.workId)
-                        }
-                        selectedWork = null
-                        popBackTo(AppRoute.Works)
-                        Toast.makeText(
-                            context,
-                            if (deleted) "作品已删除" else "作品记录不存在",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    }
-                },
+                onDeleteWork = onDeleteWork,
             )
 
             AppRoute.Orders -> OrdersRoute()
@@ -374,16 +517,25 @@ fun YingRenShengApp() {
             AppRoute.ProfileQr -> UserQrRoute()
 
             AppRoute.Settings -> SettingsRoute(
-                onLogout = {
-                    userRepository.logout()
-                    popBackTo(AppRoute.Login)
-                },
+                onLogout = onLogout,
             )
 
             AppRoute.MemberCenter -> MemberCenterRoute()
 
             AppRoute.AgencyEntry -> AgencyEntryRoute()
-            }
-        }
+    }
+}
+
+private fun String.hasAllAccessRights(): Boolean {
+    return equals("Admin", ignoreCase = true) || contains("尊享")
+}
+
+private fun TopLevelDestination.icon(selected: Boolean): ImageVector {
+    return when (route) {
+        AppRoute.Home -> if (selected) Icons.Rounded.Home else Icons.Outlined.Home
+        AppRoute.CreateEntry -> if (selected) Icons.Rounded.AddCircle else Icons.Outlined.AddCircleOutline
+        AppRoute.Works -> if (selected) Icons.Rounded.VideoLibrary else Icons.Outlined.VideoLibrary
+        AppRoute.Profile -> if (selected) Icons.Rounded.AccountCircle else Icons.Outlined.AccountCircle
+        else -> Icons.Outlined.Home
     }
 }

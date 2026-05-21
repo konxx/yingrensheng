@@ -133,8 +133,8 @@ class FakeCreationRepository(
     override fun exportPlans(outputKind: CreationOutputKind): List<ExportPlan> {
         return when (outputKind) {
             CreationOutputKind.STORY_TEXT -> listOf(
-                ExportPlan("plan_story_single", "单次小说创作包", "¥19.90", listOf("小说正文", "章节梗概", "人物关系资料", "无视频生成")),
-                ExportPlan("plan_story_member", "小说创作会员", "¥98/年", listOf("更多文本生成额度", "支持多版改写", "章节结构长期保存")),
+                ExportPlan("plan_story_single", "单次小说创作包", "¥19.90", listOf("完整小说正文", "分章正文", "人物关系资料", "无视频生成")),
+                ExportPlan("plan_story_member", "小说创作会员", "¥98/年", listOf("更多文本生成额度", "支持多版改写", "章节正文长期保存")),
             )
             CreationOutputKind.COMIC_STORYBOARD -> listOf(
                 ExportPlan("plan_comic_single", "单次漫画分镜包", "¥29.90", listOf("8-12 格分镜", "画面提示", "对白与旁白框", "不生成视频")),
@@ -153,7 +153,7 @@ class FakeCreationRepository(
 
     fun adminExportPlan(): ExportPlan = ExportPlan(
         planId = "plan_admin",
-        title = "系统管理员权益导出",
+        title = "尊享权益导出",
         priceLabel = "已豁免",
         benefits = listOf("无水印", "高清导出", "不消耗额度", "无需支付"),
     )
@@ -252,7 +252,7 @@ class FakeCreationRepository(
             previewAsset = PreviewAsset(
                 title = sessionState.value.storyDraft?.title ?: "首版成果",
                 subtitleSummary = when (sessionState.value.outputKind()) {
-                    CreationOutputKind.STORY_TEXT -> "已生成小说创作稿和结构化剧情，可导出文本创作包。"
+                    CreationOutputKind.STORY_TEXT -> "已生成小说创作稿和分章正文，可导出文本创作包。"
                     CreationOutputKind.COMIC_STORYBOARD -> "已生成连环漫画分镜脚本，可导出漫画分镜包。"
                     CreationOutputKind.CHARACTER_STORY -> "已生成角色故事设定和剧情分镜，可导出角色故事包。"
                     CreationOutputKind.SHORT_VIDEO -> "已生成三段式故事板，支持继续生成短视频预览。"
@@ -315,7 +315,7 @@ private fun draftBodyForKind(
 
 private fun draftClosingForKind(kind: CreationOutputKind): String {
     return when (kind) {
-        CreationOutputKind.STORY_TEXT -> "接下来会整理章节梗概、人物关系和结尾余味，不进入视频生成。"
+        CreationOutputKind.STORY_TEXT -> "接下来会生成分章正文、人物关系和结尾余味，不进入视频生成。"
         CreationOutputKind.COMIC_STORYBOARD -> "接下来会拆成画面、动作、对白、旁白框和页内节奏，不进入视频生成。"
         CreationOutputKind.CHARACTER_STORY -> "接下来会整理角色身份卡、关系位置卡、第一幕剧情和扩展方向。"
         CreationOutputKind.SHORT_VIDEO -> "接下来会拆成镜头、旁白、字幕和首帧提示，并生成短视频预览。"
@@ -344,11 +344,11 @@ private fun storyboardForKind(
             StoryboardSection("board_video_4", "38-60 秒：反转收束", "镜头慢下来，留一个代价、秘密或下集承诺，适合导出为短视频预览。", "字幕：可他不知道，命运也在改写他。", "38-60s"),
         )
         CreationOutputKind.STORY_TEXT -> listOf(
-            StoryboardSection("board_story_1", "第一章：世界入口", "建立 $sceneTitle 的时代规则、主角处境和第一处异常，让读者知道故事为什么现在开始。", "章节作用：开篇钩子与世界观落点", "章节梗概"),
-            StoryboardSection("board_story_2", "第二章：人物关系", "展开主角目标、同盟、阻力和关键人物的利益关系，压出后续冲突。", "章节作用：人物小传与关系网", "章节梗概"),
-            StoryboardSection("board_story_3", "第三章：第一次选择", "安排主角主动改变局面，付出代价或暴露弱点，让故事脱离静态设定。", "章节作用：行动线启动", "章节梗概"),
-            StoryboardSection("board_story_4", "第四章：危机反扑", "让旧规则、对手或命运反扑，推动主角发现更深层秘密。", "章节作用：中段升级", "章节梗概"),
-            StoryboardSection("board_story_5", "第五章：余味结尾", "完成本篇小闭环，同时留下下一篇可继续展开的人物承诺或悬念。", "章节作用：结局余韵与续写钩子", "章节梗概"),
+            StoryboardSection("board_story_1", "第一章：世界入口", "建立 $sceneTitle 的时代规则、主角处境和第一处异常，让读者知道故事为什么现在开始。", fallbackChapterText(sceneTitle, "第一章：世界入口", "主角第一次踏入陌生的时代规则，雨声、灯影和旁人的目光一同压来。他发现自己不是旁观者，因为一句无心的话已经让原本的命运偏离。章末，门外传来急促脚步，真正的冲突开始逼近。"), "小说正文"),
+            StoryboardSection("board_story_2", "第二章：人物关系", "展开主角目标、同盟、阻力和关键人物的利益关系，压出后续冲突。", fallbackChapterText(sceneTitle, "第二章：人物关系", "主角试着在几方势力之间寻找立足点，却发现每个人递来的善意都藏着条件。他与关键人物第一次长谈，对方一句反问让他意识到，自己知道的结局正在变成别人手中的筹码。"), "小说正文"),
+            StoryboardSection("board_story_3", "第三章：第一次选择", "安排主角主动改变局面，付出代价或暴露弱点，让故事脱离静态设定。", fallbackChapterText(sceneTitle, "第三章：第一次选择", "面对即将发生的旧事，主角终于没有按原来的故事沉默。他救下一个本该被舍弃的人，也因此暴露了自己不该知道的秘密。夜色落下时，他明白选择已经有了代价。"), "小说正文"),
+            StoryboardSection("board_story_4", "第四章：危机反扑", "让旧规则、对手或命运反扑，推动主角发现更深层秘密。", fallbackChapterText(sceneTitle, "第四章：危机反扑", "旧秩序开始追问他的来历，曾经的同盟也被迫站到另一侧。主角在追逐和试探中找到一页残缺线索，才知道自己改动的并非一人命运，而是整段故事的根。"), "小说正文"),
+            StoryboardSection("board_story_5", "第五章：余味结尾", "完成本篇小闭环，同时留下下一篇可继续展开的人物承诺或悬念。", fallbackChapterText(sceneTitle, "第五章：余味结尾", "主角完成了本篇最初的承诺，却也亲眼看见新的因果浮出水面。灯火照在他手里的信物上，旧故事暂时合上，下一卷却已经在风中翻开第一页。"), "小说正文"),
         )
         CreationOutputKind.CHARACTER_STORY -> listOf(
             StoryboardSection("board_character_1", "角色身份卡", "明确主角在 $sceneTitle 中的身份、年龄感、服饰方向、气质和与原著人物的距离。", "设定项：身份 / 气质 / 服饰 / 信物", "角色设定"),
@@ -357,4 +357,12 @@ private fun storyboardForKind(
             StoryboardSection("board_character_4", "后续扩展方向", "给出可继续做漫画、短视频或小说连载的三个延展钩子。", "扩展项：支线 / 反转 / 下一集", "扩展建议"),
         )
     }
+}
+
+private fun fallbackChapterText(
+    sceneTitle: String,
+    title: String,
+    body: String,
+): String {
+    return "$title\n\n在${sceneTitle}的世界里，$body\n\n这不是一段提纲，而是可以继续阅读的章节正文。"
 }

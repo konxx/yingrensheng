@@ -1,9 +1,11 @@
 package com.yingrensheng.core.ui.scaffold
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -14,7 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import com.yingrensheng.core.designsystem.theme.LocalYrsSpacing
 
 @Composable
 fun YrsScaffold(
@@ -24,8 +26,11 @@ fun YrsScaffold(
     bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    val spacing = LocalYrsSpacing.current
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = bottomBar,
     ) { paddingValues ->
         Column(
@@ -33,8 +38,9 @@ fun YrsScaffold(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(horizontal = spacing.lg, vertical = spacing.lg)
+                .animateContentSize(),
+            verticalArrangement = Arrangement.spacedBy(spacing.lg),
         ) {
             Text(
                 text = title,
@@ -42,11 +48,11 @@ fun YrsScaffold(
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            content(PaddingValues(bottom = 20.dp))
+            Spacer(modifier = Modifier.height(spacing.xs))
+            content(PaddingValues(bottom = spacing.xxl))
         }
     }
 }

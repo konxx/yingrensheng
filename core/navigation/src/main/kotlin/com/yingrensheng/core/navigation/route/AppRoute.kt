@@ -31,4 +31,34 @@ object AppRoute {
     const val MemberCenter = "member/center"
     const val Orders = "order/list"
     const val AgencyEntry = "agency/entry"
+
+    val allRoutes = listOf(
+        BackendCheck,
+        Onboarding,
+        Agreement,
+        Login,
+        Home,
+        CreateEntry,
+        SceneSelect,
+        MaterialImport,
+        MaterialReview,
+        Interview,
+        StyleSelect,
+        StoryDraft,
+        StoryGenerating,
+        Storyboard,
+        Preview,
+        ExportPlan,
+        Payment,
+        ExportProcessing,
+        Works,
+        WorkDetail,
+        Profile,
+        ProfileDetail,
+        ProfileQr,
+        Settings,
+        MemberCenter,
+        Orders,
+        AgencyEntry,
+    )
 }

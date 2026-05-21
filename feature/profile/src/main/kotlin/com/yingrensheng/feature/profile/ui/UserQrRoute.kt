@@ -11,15 +11,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.yingrensheng.core.designsystem.component.YrsSurfaceCard
-import com.yingrensheng.core.designsystem.theme.WeUiBorder
 import com.yingrensheng.core.designsystem.theme.WeUiQr
-import com.yingrensheng.core.designsystem.theme.WeUiSurface
 import com.yingrensheng.core.ui.scaffold.YrsScaffold
 import com.yingrensheng.data.user.repository.UserRepositoryProvider
 
@@ -40,8 +39,8 @@ fun UserQrRoute() {
             ) {
                 Box(
                     modifier = Modifier
-                        .border(1.dp, WeUiBorder, RoundedCornerShape(22.dp))
-                        .background(WeUiSurface, RoundedCornerShape(22.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp))
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(22.dp))
                         .padding(18.dp),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -53,7 +52,7 @@ fun UserQrRoute() {
                                         modifier = Modifier
                                             .size(18.dp)
                                             .background(
-                                                color = if (active) WeUiQr else WeUiSurface,
+                                                color = if (active) WeUiQr else MaterialTheme.colorScheme.surface,
                                                 shape = RoundedCornerShape(3.dp),
                                             ),
                                     )

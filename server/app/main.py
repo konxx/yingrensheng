@@ -3,6 +3,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import api_router
 from app.api.admin import router as admin_router
+from app.api.web import assets_app as web_assets_app
+from app.api.web import router as web_router
 from app.core.settings import settings
 from app.db.bootstrap import initialize_database
 from pathlib import Path
@@ -31,5 +33,7 @@ def health() -> dict[str, str | int]:
 
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(admin_router)
+app.mount("/web/assets", web_assets_app, name="web_assets")
+app.include_router(web_router)
 Path(settings.storage_root).mkdir(parents=True, exist_ok=True)
 app.mount("/storage", StaticFiles(directory=settings.storage_root), name="storage")
